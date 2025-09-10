@@ -21,6 +21,7 @@ class CalcIn(BaseModel):
     price: str
     quantity: str
     side: str
+    request: str
 
 class CalcOut(BaseModel):
     ok: bool
@@ -30,10 +31,11 @@ class CalcOut(BaseModel):
 def calculate(body: CalcIn):
     logging.info("Received!")
     ok, req_id, payload = make_calculation(
-        body.timestamp,
-        body.price,
-        body.quantity,
-        body.side,
+        timestamp=body.timestamp,
+        price=body.price,
+        quantity=body.quantity,
+        side=body.side,
+        request=body.request,
     )
     if ok:
         publish_success_event(payload)

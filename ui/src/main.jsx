@@ -20,11 +20,20 @@ function App() {
     setErrorText("");
     setRequestId("");
 
+    // set Analyse to default
+    const reqType = e.nativeEvent?.submitter?.value || "Analyze";
+
     try {
       const res = await fetch(`${API}/calculate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ timestamp, price, quantity, side }),
+        body: JSON.stringify({
+          timestamp,
+          price,
+          quantity,
+          side,
+          request: reqType,
+        }),
       });
 
       if (!res.ok) {
@@ -84,9 +93,14 @@ function App() {
           <input value={side} onChange={(e) => setSide(e.target.value)} required placeholder="buy/sell" />
         </label>
 
-        <button type="submit" disabled={status === "loading"}>
-          {status === "loading" ? "Working…" : "Analyze"}
-        </button>
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button type="submit" value="Analyze" disabled={status === "loading"}>
+            {status === "loading" ? "Working…" : "Analyze"}
+          </button>
+          <button type="submit" value="Estimate" disabled={status === "loading"}>
+            {status === "loading" ? "Working…" : "Estimate"}
+          </button>
+        </div>
       </form>
     </div>
   );
