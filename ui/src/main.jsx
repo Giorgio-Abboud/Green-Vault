@@ -9,6 +9,7 @@ function App() {
   const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState("");
   const [side, setSide] = useState("");
+  const [symbol, setSymbol] = useState("");
 
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
   const [requestId, setRequestId] = useState("");
@@ -32,6 +33,7 @@ function App() {
           price,
           quantity,
           side,
+          symbol,
           request: reqType,
         }),
       });
@@ -91,6 +93,11 @@ function App() {
         <label>
           Side
           <input value={side} onChange={(e) => setSide(e.target.value)} required placeholder="buy/sell" />
+        </label>
+
+        <label>
+          Symbol
+          <input value={symbol} onChange={(e) => setSymbol(e.target.value)} required placeholder="" />
         </label>
 
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>

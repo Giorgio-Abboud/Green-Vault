@@ -18,6 +18,7 @@ def make_calculation(
     price: str,
     quantity: str,
     side: str,
+    symbol: str,
     request: str,
 ):
     
@@ -40,6 +41,7 @@ def make_calculation(
         "price": price,
         "quantity": quantity,
         "side": side,
+        "symbol": symbol,
         "request": request,
         "successful": response,
         "ok": ok,
