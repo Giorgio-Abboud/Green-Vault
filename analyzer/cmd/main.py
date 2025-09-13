@@ -21,6 +21,7 @@ class CalcIn(BaseModel):
     price: str
     quantity: str
     side: str
+    symbol: str
     request: str
 
 class CalcOut(BaseModel):
@@ -35,6 +36,7 @@ def calculate(body: CalcIn):
         price=body.price,
         quantity=body.quantity,
         side=body.side,
+        symbol=body.symbol,
         request=body.request,
     )
     if ok:

@@ -10,6 +10,7 @@ type Inserter struct {
 	Price         string `json:"price"`
 	Quantity      string `json:"quantity"`
 	Side          string `json:"side"`
+	Symbol        string `json:"symbol"`
 	Request       string `json:"request"`
 	Successful    bool   `json:"successful"`
 	Ok            bool   `json:"ok"`
@@ -18,8 +19,8 @@ type Inserter struct {
 
 func (ins *Inserter) Insert() {
 	log.Printf(
-		"Saved: ts=%s price=%s qty=%s side=%s request=%s successful=%v ok=%v req_id=%s at=%s",
-		ins.Timestamp, ins.Price, ins.Quantity, ins.Side,
+		"Saved: ts=%s price=%s qty=%s side=%s symbol=%s request=%s successful=%v ok=%v req_id=%s at=%s",
+		ins.Timestamp, ins.Price, ins.Quantity, ins.Side, ins.Symbol,
 		ins.Request, ins.Successful, ins.Ok, ins.RequestID, ins.TS,
 	)
 }
