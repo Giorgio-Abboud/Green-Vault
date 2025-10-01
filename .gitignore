@@ -1,1 +1,3 @@
 ui/node_modules
+internal/.env.docker
+internal/.env.local

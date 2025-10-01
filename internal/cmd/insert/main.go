@@ -6,21 +6,68 @@ import (
 	"os"
 	"time"
 
+	"github.com/joho/godotenv"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
 	inserter "github.com/Giorgio-Abboud/Green-Vault/internal/package/insert"
+	"github.com/Giorgio-Abboud/Green-Vault/internal/package/models"
 )
 
-func env(k, d string) string {
-	if v := os.Getenv(k); v != "" {
-		return v
+// tryLoadLocalEnv loads .env.local (and .env) if they exist.
+// godotenv.Load does NOT override variables that are already set,
+// so Docker-provided env remains untouched.
+func tryLoadLocalEnv() {
+	// Prefer .env.local for local runs
+	if _, err := os.Stat(".env.local"); err == nil {
+		if err := godotenv.Load(".env.local"); err == nil {
+			log.Println("ℹ️  Loaded environment from .env.local")
+			return
+		}
 	}
-	return d
+	// Silent if neither exists; Docker/host env will be used.
 }
 
 func main() {
-	brokerURL := env("BROKER_URL", "amqp://guest:guest@rabbitmq:5672/")
-	queue := env("QUEUE_NAME", "calc.success")
+	// Load local env only if files exist; safe in Docker.
+	tryLoadLocalEnv()
+
+	// Connect to Postgres
+	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		log.Fatal("DB_URL is not set in environment")
+	}
+
+	db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+	})
+	if err != nil {
+		log.Fatalf("failed to connect db: %v", err)
+	}
+
+	// Run migrations
+	if err := db.AutoMigrate(&models.User{}); err != nil {
+		log.Fatalf("failed to migrate users: %v", err)
+	}
+	if err := db.AutoMigrate(&models.UserFill{}); err != nil {
+		log.Fatalf("failed to migrate user_fills: %v", err)
+	}
+	if err := db.AutoMigrate(&models.Metric{}); err != nil {
+		log.Fatalf("failed to migrate metrics: %v", err)
+	}
+
+	log.Println("✅ Database connected and migrations applied!")
+
+	// RabbitMQ consumer setup
+	brokerURL := os.Getenv("BROKER_URL")
+	if brokerURL == "" {
+		brokerURL = "amqp://guest:guest@rabbitmq:5672/"
+	}
+	queue := os.Getenv("QUEUE_NAME")
+	if queue == "" {
+		queue = "calc.success"
+	}
 
 	conn, err := amqp.Dial(brokerURL)
 	must(err)
@@ -47,7 +94,10 @@ func main() {
 			continue
 		}
 
+		// For now, only log
 		ins.Insert()
+
+		// Later: map Inserter → UserFill / Metric and persist with db.Create()
 
 		time.Sleep(100 * time.Millisecond)
 		_ = msg.Ack(false)
