@@ -15,6 +15,8 @@ import (
 	"github.com/Giorgio-Abboud/Green-Vault/internal/package/models"
 )
 
+var DB *gorm.DB
+
 // tryLoadLocalEnv loads .env.local (and .env) if they exist.
 // godotenv.Load does NOT override variables that are already set,
 // so Docker-provided env remains untouched.
@@ -29,10 +31,7 @@ func tryLoadLocalEnv() {
 	// Silent if neither exists; Docker/host env will be used.
 }
 
-func main() {
-	// Load local env only if files exist; safe in Docker.
-	tryLoadLocalEnv()
-
+func connectDatabase() {
 	// Connect to Postgres
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
@@ -40,22 +39,30 @@ func main() {
 	}
 
 	db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{
-		DisableForeignKeyConstraintWhenMigrating: true,
+		DisableForeignKeyConstraintWhenMigrating: false,
 	})
 	if err != nil {
 		log.Fatalf("failed to connect db: %v", err)
 	}
+	DB = db
+}
 
+func dbMigrate() {
 	// Run migrations
-	if err := db.AutoMigrate(&models.User{}); err != nil {
-		log.Fatalf("failed to migrate users: %v", err)
+	if err := DB.AutoMigrate(&models.User{}, &models.UserFill{}, &models.Metric{}); err != nil {
+		log.Fatalf("failed to migrate tables: %v", err)
 	}
-	if err := db.AutoMigrate(&models.UserFill{}); err != nil {
-		log.Fatalf("failed to migrate user_fills: %v", err)
-	}
-	if err := db.AutoMigrate(&models.Metric{}); err != nil {
-		log.Fatalf("failed to migrate metrics: %v", err)
-	}
+}
+
+func main() {
+	// Load local env only if files exist; safe in Docker.
+	tryLoadLocalEnv()
+
+	// Connect to Postgres database
+	connectDatabase()
+
+	// Run migrations to database
+	dbMigrate()
 
 	log.Println("✅ Database connected and migrations applied!")
 
