@@ -1,0 +1,18 @@
+# Ignore environment files
+.env.local
+.env.docker
+
+# Ignore VCS
+.git
+.gitignore
+
+# Ignore OS/editor files
+*.swp
+*.swo
+*.DS_Store
+.vscode/
+.idea/
+
+# Ignore build artifacts
+*.out
+*.log
