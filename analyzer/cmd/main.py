@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from src.service import make_calculation
+from src.service import create_payload
 from broker.broker import publish_success_event
 
 logging.basicConfig(level=logging.INFO)
@@ -38,7 +38,7 @@ def calculate(body: CalcIn):
     # TODO: split dictionary (metrics) call a method
 
     # Setting up payload to for broker
-    ok, req_id, payload = make_calculation(
+    ok, req_id, payload = create_payload(
         timestamp=body.timestamp,
         price=body.price,
         quantity=body.quantity,

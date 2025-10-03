@@ -12,7 +12,7 @@ def estimate(timestamp: str, price: str, quantity: str, side: str) -> bool:
     # TODO: real estimation here
     return True
 
-def make_calculation(
+def create_payload(
     *,
     timestamp: str,
     price: str,
