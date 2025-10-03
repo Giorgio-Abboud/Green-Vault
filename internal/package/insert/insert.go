@@ -18,6 +18,7 @@ type Inserter struct {
 }
 
 func (ins *Inserter) Insert() {
+	// TODO: implement DB insertion logic
 	log.Printf(
 		"Saved: ts=%s price=%s qty=%s side=%s symbol=%s request=%s successful=%v ok=%v req_id=%s at=%s",
 		ins.Timestamp, ins.Price, ins.Quantity, ins.Side, ins.Symbol,

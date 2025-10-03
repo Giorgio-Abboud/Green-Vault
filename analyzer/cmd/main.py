@@ -31,6 +31,13 @@ class CalcOut(BaseModel):
 @app.post("/calculate", response_model=CalcOut)
 def calculate(body: CalcIn):
     logging.info("Received!")
+    # TODO: check for type of request (Analyze or Estimate)
+
+    # TODO: get metrics
+
+    # TODO: split dictionary (metrics) call a method
+
+    # Setting up payload to for broker
     ok, req_id, payload = make_calculation(
         timestamp=body.timestamp,
         price=body.price,
@@ -39,6 +46,8 @@ def calculate(body: CalcIn):
         symbol=body.symbol,
         request=body.request,
     )
+
+    # Send information to broker
     if ok:
         publish_success_event(payload)
     return {"ok": ok, "request_id": req_id}
