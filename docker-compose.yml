@@ -2,46 +2,33 @@ version: "3.9"
 
 services:
   ui:
-    # For dev, use chainguard latest-dev image
     build: ./ui
     image: green-vault-ui
     ports: ["5173:5173"]
     environment:
-      - VITE_CALC_BASE_URL=http://localhost:8000
+      - VITE_CALC_BASE_URL=http://localhost:8000   # FastAPI
+      - VITE_API_BASE_URL=http://localhost:8080    # Go API
     depends_on:
       analyzer:
-        condition: service_started  # UI just needs calc to be up; optional
+        condition: service_started
 
   analyzer:
     build: ./analyzer
     image: green-vault-analyzer
-    environment:
-      - BROKER_URL=amqp://guest:guest@rabbitmq:5672/
-      - QUEUE_NAME=calc.success
+    # Removed RabbitMQ env — not used anymore
     ports: ["8000:8000"]
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
     restart: unless-stopped
 
-  internal:
+  api:
     build: ./internal
-    image: green-vault-internal
+    image: green-vault-api
+    command: ["/app/server-api"]
     env_file:
       - ./internal/.env.docker
+    environment:
+      - API_PORT=8080
+      - JWT_SECRET=change-me
     extra_hosts:
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+      - "host.docker.internal:host-gateway"  # reach host Postgres
+    ports: ["8080:8080"]
     restart: unless-stopped
-
-  rabbitmq:
-    image: rabbitmq:3.13-management
-    ports: ["5672:5672","15672:15672"]
-    healthcheck:
-      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-      start_period: 5s
