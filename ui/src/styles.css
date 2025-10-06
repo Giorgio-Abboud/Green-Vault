@@ -56,3 +56,10 @@ button:disabled {
 .banner.error {
   background: #fde8e8;
 }
+
+.form {
+  display: grid;
+  gap: 12px;
+  max-width: 420px;
+  margin-bottom: 12px;
+}
