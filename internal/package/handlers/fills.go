@@ -13,12 +13,13 @@ import (
 
 type SaveFillIn struct {
 	Fill struct {
-		Timestamp time.Time `json:"timestamp"`
-		Price     string    `json:"price"`
-		Quantity  string    `json:"quantity"`
-		Side      string    `json:"side"`
-		Symbol    string    `json:"symbol"`
-		Result    string    `json:"result"`
+		Timestamp string `json:"timestamp"` // accept string; parse to time
+		Price     string `json:"price"`
+		Quantity  string `json:"quantity"`
+		Side      string `json:"side"`
+		Symbol    string `json:"symbol"`
+		Mode      string `json:"mode"`
+		Result    string `json:"result"`
 	} `json:"fill"`
 	Metrics struct {
 		VwapSlippage    string `json:"vwap_slippage"`
@@ -36,27 +37,33 @@ func SaveFill(app *App) http.HandlerFunc {
 		// TODO: require auth, get userID from session/JWT
 		// TEMP: stub user id (replace!)
 		userID := uuid.Nil
-		_ = userID
 
 		var in SaveFillIn
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-			http.Error(w, "bad json", 400)
+			http.Error(w, "bad json", http.StatusBadRequest)
 			return
 		}
-		// TODO: validate payload (side in {BUY,SELL}, symbol non-empty, etc.)
+
+		// Parse timestamp (expect RFC3339: e.g., 2025-10-06T14:00:00Z)
+		ts, err := time.Parse(time.RFC3339, in.Fill.Timestamp)
+		if err != nil {
+			http.Error(w, "invalid timestamp: must be RFC3339", http.StatusBadRequest)
+			return
+		}
 
 		fillID := uuid.New()
 		metricID := uuid.New()
 
-		err := app.DB.Transaction(func(tx *gorm.DB) error {
+		err = app.DB.Transaction(func(tx *gorm.DB) error {
 			uf := models.UserFill{
 				ID:        fillID,
 				UserID:    userID, // <- replace when auth implemented
 				Symbol:    in.Fill.Symbol,
-				Timestamp: in.Fill.Timestamp,
+				Timestamp: ts,
 				Price:     in.Fill.Price,
 				Side:      in.Fill.Side,
 				Quantity:  in.Fill.Quantity,
+				Mode:      in.Fill.Mode,
 				Result:    in.Fill.Result,
 			}
 			if err := tx.Create(&uf).Error; err != nil {
@@ -77,9 +84,12 @@ func SaveFill(app *App) http.HandlerFunc {
 		})
 
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, 201, map[string]any{"fill_id": fillID, "metric_id": metricID})
+		writeJSON(w, http.StatusCreated, map[string]any{
+			"fill_id":   fillID,
+			"metric_id": metricID,
+		})
 	}
 }

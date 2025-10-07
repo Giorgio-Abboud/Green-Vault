@@ -28,11 +28,10 @@ type UserFill struct {
 	Price     string    `gorm:"type:text"`
 	Side      string    `gorm:"type:text"`
 	Quantity  string    `gorm:"type:text"`
+	Mode      string    `gorm:"type:text"`
 	Result    string    `gorm:"type:text"`
 
-	User User
-
-	// 1-1
+	User   User
 	Metric Metric `gorm:"foreignKey:UserFillID;references:ID;constraint:OnDelete:CASCADE;"`
 }
 

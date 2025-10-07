@@ -11,6 +11,8 @@ services:
     depends_on:
       analyzer:
         condition: service_started
+      internal:
+        condition: service_started
 
   analyzer:
     build: ./analyzer
@@ -19,9 +21,9 @@ services:
     ports: ["8000:8000"]
     restart: unless-stopped
 
-  api:
+  internal:
     build: ./internal
-    image: green-vault-api
+    image: green-vault-internal
     command: ["/app/server-api"]
     env_file:
       - ./internal/.env.docker
