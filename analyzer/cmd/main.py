@@ -1,9 +1,9 @@
 import logging
+from typing import Any, Dict, Optional
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from src.service import create_payload
-from broker.broker import publish_success_event
+from pydantic import BaseModel, Field
+from src.service import make_calculation
 
 logging.basicConfig(level=logging.INFO)
 app = FastAPI()
@@ -16,6 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# -------------------- Input & Output Models --------------------
 class CalcIn(BaseModel):
     timestamp: str
     price: str
@@ -24,30 +25,54 @@ class CalcIn(BaseModel):
     symbol: str
     request: str
 
+class Fill(BaseModel):
+    timestamp: str
+    price: str
+    quantity: str
+    side: str
+    symbol: str
+    mode: str
+
+class Metric(BaseModel):
+    vwap_slippage: str
+    shortfall: str
+    effective_spread: str
+    realized_spread: str
+    market_impact: str
+    drift: str
+
 class CalcOut(BaseModel):
     ok: bool
-    request_id: str
+    request_id: str = Field(..., description="Trace ID for the calculation")
+    fills: Fill
+    metrics: Metric
 
+# -------------------- Endpoint --------------------
 @app.post("/calculate", response_model=CalcOut)
 def calculate(body: CalcIn):
-    logging.info("Received!")
-    # TODO: check for type of request (Analyze or Estimate)
+    """
+    Accept input from the UI (which sends `request`), map to `mode`,
+    and return { ok, request_id, fills, metrics }.
+    """
+    logging.info("Received /calculate")
 
-    # TODO: get metrics
+    # Map request -> normalized mode
+    req = (body.request or "").strip().lower()
+    if req == "analyze":
+        mode = "analyze"
+    elif req == "estimate":
+        mode = "estimate"
+    else:
+        logging.warning("Unknown request %r; defaulting to analyze", body.request)
+        mode = "analyze"
 
-    # TODO: split dictionary (metrics) call a method
-
-    # Setting up payload to for broker
-    ok, req_id, payload = create_payload(
+    ok, req_id, fills, metrics = make_calculation(
         timestamp=body.timestamp,
         price=body.price,
         quantity=body.quantity,
         side=body.side,
         symbol=body.symbol,
-        request=body.request,
+        mode=mode,
     )
 
-    # Send information to broker
-    if ok:
-        publish_success_event(payload)
-    return {"ok": ok, "request_id": req_id}
+    return {"ok": ok, "request_id": req_id, "fills": fills, "metrics": metrics}

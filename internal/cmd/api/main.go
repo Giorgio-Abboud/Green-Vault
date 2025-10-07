@@ -1,17 +1,17 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
+	"net/http"
 	"os"
-	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	inserter "github.com/Giorgio-Abboud/Green-Vault/internal/package/insert"
+	"github.com/Giorgio-Abboud/Green-Vault/internal/package/handlers"
 	"github.com/Giorgio-Abboud/Green-Vault/internal/package/models"
 )
 
@@ -55,7 +55,7 @@ func dbMigrate() {
 }
 
 func main() {
-	// Load local env only if files exist; safe in Docker.
+	// Load local env, safe in Docker.
 	tryLoadLocalEnv()
 
 	// Connect to Postgres database
@@ -66,53 +66,38 @@ func main() {
 
 	log.Println("✅ Database connected and migrations applied!")
 
-	// RabbitMQ consumer setup
-	brokerURL := os.Getenv("BROKER_URL")
-	if brokerURL == "" {
-		brokerURL = "amqp://guest:guest@rabbitmq:5672/"
-	}
-	queue := os.Getenv("QUEUE_NAME")
-	if queue == "" {
-		queue = "calc.success"
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = "change-me"
 	}
 
-	conn, err := amqp.Dial(brokerURL)
-	must(err)
-	defer conn.Close()
-
-	ch, err := conn.Channel()
-	must(err)
-	defer ch.Close()
-
-	_, err = ch.QueueDeclare(queue, true, false, false, false, nil)
-	must(err)
-
-	must(ch.Qos(10, 0, false))
-
-	msgs, err := ch.Consume(queue, "", false, false, false, false, nil)
-	must(err)
-
-	log.Println("Inserter consuming...")
-	for msg := range msgs {
-		var ins inserter.Inserter
-		if err := json.Unmarshal(msg.Body, &ins); err != nil {
-			log.Printf("bad json: %v", err)
-			_ = msg.Nack(false, false)
-			continue
-		}
-
-		// For now, only log
-		ins.Insert()
-
-		// Later: map Inserter → UserFill / Metric and persist with db.Create()
-
-		time.Sleep(100 * time.Millisecond)
-		_ = msg.Ack(false)
+	// Use the App type from the handlers package
+	app := &handlers.App{
+		DB:        DB,
+		JWTSecret: secret,
 	}
-}
 
-func must(err error) {
-	if err != nil {
-		log.Fatal(err)
+	r := chi.NewRouter()
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
+
+	// Wire handlers
+	r.Route("/v1", func(rt chi.Router) {
+		rt.Post("/users", handlers.Signup(app))   // signup
+		rt.Post("/login", handlers.Login(app))    // login -> set cookie/JWT
+		rt.Get("/me", handlers.Me(app))           // whoami (auth required)
+		rt.Post("/fills", handlers.SaveFill(app)) // save fill+metrics (auth required)
+	})
+
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		port = "8080"
 	}
+	log.Printf("Go API listening on :%s", port)
+	log.Fatal(http.ListenAndServe(":"+port, r))
 }
