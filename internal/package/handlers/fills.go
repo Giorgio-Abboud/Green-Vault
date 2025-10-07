@@ -13,7 +13,7 @@ import (
 
 type SaveFillIn struct {
 	Fill struct {
-		Timestamp string `json:"timestamp"` // accept string; parse to time
+		Timestamp string `json:"timestamp"` // RFC3339 string
 		Price     string `json:"price"`
 		Quantity  string `json:"quantity"`
 		Side      string `json:"side"`
@@ -34,20 +34,18 @@ type SaveFillIn struct {
 
 func SaveFill(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: require auth, get userID from session/JWT
-		// TEMP: stub user id (replace!)
+		// TODO: replace with real user id from auth/session
 		userID := uuid.Nil
 
 		var in SaveFillIn
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-			http.Error(w, "bad json", http.StatusBadRequest)
+			WriteError(w, http.StatusBadRequest, err)
 			return
 		}
 
-		// Parse timestamp (expect RFC3339: e.g., 2025-10-06T14:00:00Z)
 		ts, err := time.Parse(time.RFC3339, in.Fill.Timestamp)
 		if err != nil {
-			http.Error(w, "invalid timestamp: must be RFC3339", http.StatusBadRequest)
+			WriteError(w, http.StatusBadRequest, err)
 			return
 		}
 
@@ -57,7 +55,7 @@ func SaveFill(app *App) http.HandlerFunc {
 		err = app.DB.Transaction(func(tx *gorm.DB) error {
 			uf := models.UserFill{
 				ID:        fillID,
-				UserID:    userID, // <- replace when auth implemented
+				UserID:    userID,
 				Symbol:    in.Fill.Symbol,
 				Timestamp: ts,
 				Price:     in.Fill.Price,
@@ -84,10 +82,11 @@ func SaveFill(app *App) http.HandlerFunc {
 		})
 
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			WriteError(w, http.StatusInternalServerError, err)
 			return
 		}
-		writeJSON(w, http.StatusCreated, map[string]any{
+
+		WriteJSON(w, http.StatusCreated, map[string]any{
 			"fill_id":   fillID,
 			"metric_id": metricID,
 		})

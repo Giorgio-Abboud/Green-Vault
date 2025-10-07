@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -27,13 +28,16 @@ func Signup(app *App) http.HandlerFunc {
 		}
 		var body in
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, "bad json", http.StatusBadRequest)
+			WriteError(w, http.StatusBadRequest, err)
 			return
 		}
 
-		// TODO: validate inputs (email format, password length, etc.)
 		email := strings.ToLower(strings.TrimSpace(body.Email))
-		hash, _ := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+		hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, err)
+			return
+		}
 
 		u := models.User{
 			ID:           uuid.New(),
@@ -43,10 +47,11 @@ func Signup(app *App) http.HandlerFunc {
 			PasswordHash: string(hash),
 		}
 		if err := app.DB.Create(&u).Error; err != nil {
-			http.Error(w, err.Error(), http.StatusConflict)
+			// Likely duplicate email (unique index)
+			WriteError(w, http.StatusConflict, err)
 			return
 		}
-		writeJSON(w, http.StatusCreated, map[string]any{"id": u.ID, "email": u.Email})
+		WriteJSON(w, http.StatusCreated, map[string]any{"id": u.ID, "email": u.Email})
 	}
 }
 
@@ -58,36 +63,29 @@ func Login(app *App) http.HandlerFunc {
 		}
 		var body in
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, "bad json", http.StatusBadRequest)
+			WriteError(w, http.StatusBadRequest, err)
 			return
 		}
 		email := strings.ToLower(strings.TrimSpace(body.Email))
 
 		var u models.User
 		if err := app.DB.First(&u, "email = ?", email).Error; err != nil {
-			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+			WriteError(w, http.StatusUnauthorized, errors.New("invalid credentials"))
 			return
 		}
 		if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(body.Password)) != nil {
-			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+			WriteError(w, http.StatusUnauthorized, errors.New("invalid credentials"))
 			return
 		}
 
-		// TODO: issue secure cookie or JWT (for now, return user id)
-		writeJSON(w, http.StatusOK, map[string]any{"id": u.ID, "email": u.Email})
+		// TODO: issue secure cookie or JWT; for now return user summary
+		WriteJSON(w, http.StatusOK, map[string]any{"id": u.ID, "email": u.Email})
 	}
 }
 
 func Me(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: read cookie/JWT, load user by id
-		http.Error(w, "not implemented", http.StatusNotImplemented)
+		WriteError(w, http.StatusNotImplemented, errors.New("not implemented"))
 	}
-}
-
-// shared helper for this package
-func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("content-type", "application/json")
-	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(v)
 }
