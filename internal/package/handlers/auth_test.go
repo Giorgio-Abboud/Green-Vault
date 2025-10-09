@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
 
 	"github.com/Giorgio-Abboud/Green-Vault/internal/package/models"
 )
@@ -12,8 +15,15 @@ import (
 func TestSignup(t *testing.T) {
 	app := newTestApp(t)
 
-	// seed duplicate
-	if err := app.DB.Create(&models.User{Email: "dupe@example.com"}).Error; err != nil {
+	// seed a duplicate email directly through the Store
+	_, err := app.Store.CreateUser(context.Background(), &models.User{
+		ID:           uuid.New(),
+		Email:        "dupe@example.com",
+		Name:         "Seed",
+		LastName:     "User",
+		PasswordHash: "seed-hash",
+	})
+	if err != nil {
 		t.Fatalf("seed dupe: %v", err)
 	}
 
@@ -37,7 +47,7 @@ func TestSignup(t *testing.T) {
 		{
 			name: "bad_json",
 			bodyJSON: map[string]any{
-				"email": 123, // invalid type to simulate bad JSON
+				"email": 123,
 			},
 			wantStatus: http.StatusBadRequest,
 			wantOK:     false,
@@ -70,13 +80,12 @@ func TestSignup(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestLogin(t *testing.T) {
 	app := newTestApp(t)
 
-	// Seed a user via Signup to get a real bcrypt hash
+	// Seed a user via Signup to produce a real bcrypt hash
 	seed := map[string]any{
 		"email":     "ok@example.com",
 		"name":      "Ok",

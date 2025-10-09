@@ -66,7 +66,6 @@ func TestSaveFill(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-
 			var req *http.Request
 			switch v := tc.bodyJSON.(type) {
 			case string:

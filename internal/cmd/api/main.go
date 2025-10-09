@@ -11,59 +11,46 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	"github.com/Giorgio-Abboud/Green-Vault/internal/datastore"
 	"github.com/Giorgio-Abboud/Green-Vault/internal/package/handlers"
 	"github.com/Giorgio-Abboud/Green-Vault/internal/package/models"
 )
 
-var DB *gorm.DB
-
 // tryLoadLocalEnv loads .env.local (and .env) if they exist.
-// godotenv.Load does NOT override variables that are already set,
-// so Docker-provided env remains untouched.
 func tryLoadLocalEnv() {
-	// Prefer .env.local for local runs
 	if _, err := os.Stat(".env.local"); err == nil {
 		if err := godotenv.Load(".env.local"); err == nil {
 			log.Println("ℹ️  Loaded environment from .env.local")
 			return
 		}
 	}
-	// Silent if neither exists; Docker/host env will be used.
 }
 
-func connectDatabase() {
-	// Connect to Postgres
+func connectDatabase() *gorm.DB {
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
 		log.Fatal("DB_URL is not set in environment")
 	}
-
 	db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: false,
 	})
 	if err != nil {
 		log.Fatalf("failed to connect db: %v", err)
 	}
-	DB = db
+	return db
 }
 
-func dbMigrate() {
-	// Run migrations
-	if err := DB.AutoMigrate(&models.User{}, &models.UserFill{}, &models.Metric{}); err != nil {
+func dbMigrate(db *gorm.DB) {
+	if err := db.AutoMigrate(&models.User{}, &models.UserFill{}, &models.Metric{}); err != nil {
 		log.Fatalf("failed to migrate tables: %v", err)
 	}
 }
 
 func main() {
-	// Load local env, safe in Docker.
 	tryLoadLocalEnv()
 
-	// Connect to Postgres database
-	connectDatabase()
-
-	// Run migrations to database
-	dbMigrate()
-
+	db := connectDatabase()
+	dbMigrate(db)
 	log.Println("✅ Database connected and migrations applied!")
 
 	secret := os.Getenv("JWT_SECRET")
@@ -71,9 +58,10 @@ func main() {
 		secret = "change-me"
 	}
 
-	// Use the App type from the handlers package
+	// Handlers App uses the store
+	store := datastore.New(db)
 	app := &handlers.App{
-		DB:        DB,
+		Store:     store,
 		JWTSecret: secret,
 	}
 
@@ -89,9 +77,9 @@ func main() {
 	// Wire handlers
 	r.Route("/v1", func(rt chi.Router) {
 		rt.Post("/users", handlers.Signup(app))   // signup
-		rt.Post("/login", handlers.Login(app))    // login -> set cookie/JWT
-		rt.Get("/me", handlers.Me(app))           // whoami (auth required)
-		rt.Post("/fills", handlers.SaveFill(app)) // save fill+metrics (auth required)
+		rt.Post("/login", handlers.Login(app))    // login
+		rt.Get("/me", handlers.Me(app))           // whoami
+		rt.Post("/fills", handlers.SaveFill(app)) // save fill+metrics
 	})
 
 	port := os.Getenv("API_PORT")

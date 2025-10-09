@@ -8,25 +8,24 @@ import (
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 
 	"github.com/Giorgio-Abboud/Green-Vault/internal/package/models"
 )
 
 type App struct {
-	DB        *gorm.DB
+	Store     Store
 	JWTSecret string
 }
 
 func Signup(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		type in struct {
+		type UserInfo struct {
 			Email    string `json:"email"`
 			Name     string `json:"name"`
 			LastName string `json:"last_name"`
 			Password string `json:"password"`
 		}
-		var body in
+		var body UserInfo
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			WriteError(w, http.StatusBadRequest, err)
 			return
@@ -46,30 +45,34 @@ func Signup(app *App) http.HandlerFunc {
 			LastName:     body.LastName,
 			PasswordHash: string(hash),
 		}
-		if err := app.DB.Create(&u).Error; err != nil {
-			// Likely duplicate email (unique index)
+
+		created, err := app.Store.CreateUser(r.Context(), &u)
+		if err != nil {
 			WriteError(w, http.StatusConflict, err)
 			return
 		}
-		WriteJSON(w, http.StatusCreated, map[string]any{"id": u.ID, "email": u.Email})
+		WriteJSON(w, http.StatusCreated, map[string]any{
+			"id":    created.ID,
+			"email": created.Email,
+		})
 	}
 }
 
 func Login(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		type in struct {
+		type UserRequest struct {
 			Email    string `json:"email"`
 			Password string `json:"password"`
 		}
-		var body in
+		var body UserRequest
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			WriteError(w, http.StatusBadRequest, err)
 			return
 		}
 		email := strings.ToLower(strings.TrimSpace(body.Email))
 
-		var u models.User
-		if err := app.DB.First(&u, "email = ?", email).Error; err != nil {
+		u, err := app.Store.GetUserByEmail(r.Context(), email)
+		if err != nil {
 			WriteError(w, http.StatusUnauthorized, errors.New("invalid credentials"))
 			return
 		}
