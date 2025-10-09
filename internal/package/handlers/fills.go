@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	"github.com/Giorgio-Abboud/Green-Vault/internal/package/models"
 )
@@ -52,36 +51,35 @@ func SaveFill(app *App) http.HandlerFunc {
 		fillID := uuid.New()
 		metricID := uuid.New()
 
-		err = app.DB.Transaction(func(tx *gorm.DB) error {
-			uf := models.UserFill{
-				ID:        fillID,
-				UserID:    userID,
-				Symbol:    in.Fill.Symbol,
-				Timestamp: ts,
-				Price:     in.Fill.Price,
-				Side:      in.Fill.Side,
-				Quantity:  in.Fill.Quantity,
-				Mode:      in.Fill.Mode,
-				Result:    in.Fill.Result,
-			}
-			if err := tx.Create(&uf).Error; err != nil {
-				return err
-			}
+		// Step 1: create the user_fill
+		uf := models.UserFill{
+			ID:        fillID,
+			UserID:    userID,
+			Symbol:    in.Fill.Symbol,
+			Timestamp: ts,
+			Price:     in.Fill.Price,
+			Side:      in.Fill.Side,
+			Quantity:  in.Fill.Quantity,
+			Mode:      in.Fill.Mode,
+			Result:    in.Fill.Result,
+		}
+		if _, err := app.Store.CreateUserFill(r.Context(), &uf); err != nil {
+			WriteError(w, http.StatusInternalServerError, err)
+			return
+		}
 
-			m := models.Metric{
-				ID:              metricID,
-				UserFillID:      uf.ID,
-				VwapSlippage:    in.Metrics.VwapSlippage,
-				Shortfall:       in.Metrics.Shortfall,
-				EffectiveSpread: in.Metrics.EffectiveSpread,
-				RealizedSpread:  in.Metrics.RealizedSpread,
-				MarketImpact:    in.Metrics.MarketImpact,
-				Drift:           in.Metrics.Drift,
-			}
-			return tx.Create(&m).Error
-		})
-
-		if err != nil {
+		// Step 2: create the metrics referencing fill
+		m := models.Metric{
+			ID:              metricID,
+			UserFillID:      uf.ID,
+			VwapSlippage:    in.Metrics.VwapSlippage,
+			Shortfall:       in.Metrics.Shortfall,
+			EffectiveSpread: in.Metrics.EffectiveSpread,
+			RealizedSpread:  in.Metrics.RealizedSpread,
+			MarketImpact:    in.Metrics.MarketImpact,
+			Drift:           in.Metrics.Drift,
+		}
+		if _, err := app.Store.CreateMetric(r.Context(), &m); err != nil {
 			WriteError(w, http.StatusInternalServerError, err)
 			return
 		}
