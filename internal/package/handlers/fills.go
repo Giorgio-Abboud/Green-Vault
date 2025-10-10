@@ -12,7 +12,7 @@ import (
 
 type SaveFillIn struct {
 	Fill struct {
-		Timestamp string `json:"timestamp"` // RFC3339 string
+		Timestamp string `json:"timestamp"` // RFC3339
 		Price     string `json:"price"`
 		Quantity  string `json:"quantity"`
 		Side      string `json:"side"`
@@ -31,10 +31,14 @@ type SaveFillIn struct {
 	ClientRequestID string `json:"client_request_id"`
 }
 
+// POST /v1/fills (protected)
 func SaveFill(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: replace with real user id from auth/session
-		userID := uuid.Nil
+		userID := CurrentUserID(r)
+		if userID == uuid.Nil {
+			WriteError(w, http.StatusUnauthorized, ErrUnauthorized)
+			return
+		}
 
 		var in SaveFillIn
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -51,8 +55,8 @@ func SaveFill(app *App) http.HandlerFunc {
 		fillID := uuid.New()
 		metricID := uuid.New()
 
-		// Step 1: create the user_fill
-		uf := models.UserFill{
+		// 1) create fill
+		uf := &models.UserFill{
 			ID:        fillID,
 			UserID:    userID,
 			Symbol:    in.Fill.Symbol,
@@ -63,13 +67,13 @@ func SaveFill(app *App) http.HandlerFunc {
 			Mode:      in.Fill.Mode,
 			Result:    in.Fill.Result,
 		}
-		if _, err := app.Store.CreateUserFill(r.Context(), &uf); err != nil {
+		if _, err := app.Store.CreateUserFill(r.Context(), uf); err != nil {
 			WriteError(w, http.StatusInternalServerError, err)
 			return
 		}
 
-		// Step 2: create the metrics referencing fill
-		m := models.Metric{
+		// 2) create metrics
+		m := &models.Metric{
 			ID:              metricID,
 			UserFillID:      uf.ID,
 			VwapSlippage:    in.Metrics.VwapSlippage,
@@ -79,7 +83,7 @@ func SaveFill(app *App) http.HandlerFunc {
 			MarketImpact:    in.Metrics.MarketImpact,
 			Drift:           in.Metrics.Drift,
 		}
-		if _, err := app.Store.CreateMetric(r.Context(), &m); err != nil {
+		if _, err := app.Store.CreateMetric(r.Context(), m); err != nil {
 			WriteError(w, http.StatusInternalServerError, err)
 			return
 		}
