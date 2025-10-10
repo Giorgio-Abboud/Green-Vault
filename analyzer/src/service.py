@@ -3,9 +3,12 @@ import uuid
 from typing import Dict, Tuple
 
 # ---- metric calculators (stubs) ----
-def analyze(timestamp: str, price: str, quantity: str, side: str) -> Dict:
+def analyze(timestamp: str, price: str, quantity: str, side: str, symbol: str) -> Dict:
     logging.info("Starting ANALYSIS...")
     # TODO real implementation of analysis
+    # call_api(timestamp, symbol, "5min", timestamp+5 minutes)
+
+
     # example
     return {
         "vwap_slippage": "0.15",
@@ -16,7 +19,7 @@ def analyze(timestamp: str, price: str, quantity: str, side: str) -> Dict:
         "drift": "0.03",
     }
 
-def estimate(timestamp: str, price: str, quantity: str, side: str) -> Dict:
+def estimate(timestamp: str, price: str, quantity: str, side: str, symbol: str) -> Dict:
     logging.info("Starting ESTIMATION...")
     # TODO real implementation of estimation
     # example
@@ -55,9 +58,9 @@ def make_calculation(
     }
 
     if m == "analyze":
-        metrics = analyze(timestamp, price, quantity, side)
+        metrics = analyze(timestamp, price, quantity, side, symbol)
     elif m == "estimate":
-        metrics = estimate(timestamp, price, quantity, side)
+        metrics = estimate(timestamp, price, quantity, side, symbol)
     else:
         logging.warning("Unknown mode %r; defaulting to analyze", mode)
         metrics = analyze(timestamp, price, quantity, side)
