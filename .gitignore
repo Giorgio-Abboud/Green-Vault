@@ -1,1 +1,3 @@
 ui/node_modules
+venv
+analyzer/src/if_db_increase.py
