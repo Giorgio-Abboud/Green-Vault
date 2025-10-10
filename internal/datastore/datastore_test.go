@@ -157,6 +157,65 @@ func TestGetUserByEmail(t *testing.T) {
 	}
 }
 
+/************ GetUserByID ************/
+
+func TestGetUserByID(t *testing.T) {
+	store := newStore(t)
+	ctx := context.Background()
+
+	idTest := uuid.New()
+	u := models.User{
+		ID:           idTest,
+		Email:        "myemail@email.com",
+		Name:         "Roary",
+		LastName:     "Panther",
+		PasswordHash: "hashed",
+	}
+	if _, err := store.CreateUser(ctx, &u); err != nil {
+		t.Fatalf("seed CreateUser: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name     string
+		id       uuid.UUID
+		wantErr  bool
+		wantSame bool
+	}{
+		{
+			name:     "ok",
+			id:       idTest,
+			wantErr:  false,
+			wantSame: true,
+		},
+		{
+			name:    "empty uuid",
+			id:      uuid.Nil,
+			wantErr: true,
+		},
+		{
+			name:    "not found",
+			id:      uuid.New(),
+			wantErr: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := store.GetUserByID(ctx, tc.id)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tc.wantSame && got.ID != u.ID {
+				t.Fatalf("got %q want %q", got.Email, u.Email)
+			}
+		})
+	}
+}
+
 /************ CreateUserFill ************/
 
 func TestCreateUserFill(t *testing.T) {
