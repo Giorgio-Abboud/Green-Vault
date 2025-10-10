@@ -57,6 +57,18 @@ func (f *fakeStore) GetUserByEmail(_ context.Context, email string) (*models.Use
 	return &u, nil
 }
 
+func (f *fakeStore) GetUserByID(_ context.Context, id uuid.UUID) (*models.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, u := range f.users {
+		if u.ID == id {
+			uu := u
+			return &uu, nil
+		}
+	}
+	return nil, errors.New("not found")
+}
+
 func (f *fakeStore) CreateUserFill(_ context.Context, uf *models.UserFill) (*models.UserFill, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

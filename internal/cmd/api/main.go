@@ -76,10 +76,17 @@ func main() {
 
 	// Wire handlers
 	r.Route("/v1", func(rt chi.Router) {
-		rt.Post("/users", handlers.Signup(app))   // signup
-		rt.Post("/login", handlers.Login(app))    // login
-		rt.Get("/me", handlers.Me(app))           // whoami
-		rt.Post("/fills", handlers.SaveFill(app)) // save fill+metrics
+		// public
+		rt.Post("/users", handlers.Signup(app))
+		rt.Post("/login", handlers.Login(app))
+		rt.Post("/logout", handlers.Logout(app))
+
+		// protected
+		rt.Group(func(pr chi.Router) {
+			pr.Use(handlers.AuthMiddleware(app))
+			pr.Get("/me", handlers.Me(app))
+			pr.Post("/fills", handlers.SaveFill(app))
+		})
 	})
 
 	port := os.Getenv("API_PORT")
