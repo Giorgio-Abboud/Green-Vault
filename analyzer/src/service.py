@@ -1,12 +1,32 @@
 import logging
 import uuid
 from typing import Dict, Tuple
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+from twelvedata import TDClient
+import os
+
+from .twelve_client import get_latest_price, get_time_series
+
+NY = ZoneInfo("America/New_York")
 
 # ---- metric calculators (stubs) ----
 def analyze(timestamp: str, price: str, quantity: str, side: str, symbol: str) -> Dict:
     logging.info("Starting ANALYSIS...")
     # TODO real implementation of analysis
     # call_api(timestamp, symbol, "5min", timestamp+5 minutes)
+
+    # --- temporary debug section ---
+    api_key = os.getenv("TWELVE_DATA_API_KEY")
+    td = TDClient(apikey=api_key)
+    try:
+        test = td.price(symbol=symbol).as_json()
+        print("✅ TwelveData response:", test)        # quick visual check
+        logging.info(f"TwelveData response: {test}")  # keeps it in container logs
+    except Exception as e:
+        print("❌ Error calling TwelveData:", e)
+        logging.error("Error calling TwelveData", exc_info=True)
+    # --- end debug ---
 
 
     # example
