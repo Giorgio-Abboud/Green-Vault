@@ -21,10 +21,10 @@ def analyze(timestamp: str, price: str, quantity: str, side: str, symbol: str) -
     td = TDClient(apikey=api_key)
     try:
         test = td.price(symbol=symbol).as_json()
-        print("✅ TwelveData response:", test)        # quick visual check
+        print("TwelveData response:", test)        # quick visual check
         logging.info(f"TwelveData response: {test}")  # keeps it in container logs
     except Exception as e:
-        print("❌ Error calling TwelveData:", e)
+        print("Error calling TwelveData:", e)
         logging.error("Error calling TwelveData", exc_info=True)
     # --- end debug ---
 
