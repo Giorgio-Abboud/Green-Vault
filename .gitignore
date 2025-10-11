@@ -4,6 +4,4 @@ analyzer/src/if_db_increase.py
 internal/.env.docker
 internal/.env.local
 .env
-=======
 ui/.env
->>>>>>> 5090bd8f592012a815b0a26b084825ab95f9ee13
