@@ -1,21 +1,27 @@
 const API  = import.meta.env.VITE_API_BASE_URL  || "http://localhost:8080";
 const CALC = import.meta.env.VITE_CALC_BASE_URL || "http://localhost:8000";
 
+// Small helper to throw nice errors and unwrap { ok, data }
+async function handleJson(res) {
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  const out = await res.json();
+  // Our Go API returns { ok, data?, error? } – prefer .data if present
+  return typeof out === "object" && out && "data" in out ? out.data : out;
+}
+
 export async function apiPost(path, body) {
   const res = await fetch(`${API}${path}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    credentials: "include",          // enables cookies later
+    credentials: "include",
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-  return res.json();
+  return handleJson(res);
 }
 
 export async function apiGet(path) {
   const res = await fetch(`${API}${path}`, { credentials: "include" });
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-  return res.json();
+  return handleJson(res);
 }
 
 export async function calcPost(body) {
@@ -24,6 +30,6 @@ export async function calcPost(body) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-  return res.json();
+  // FastAPI returns the payload directly (not wrapped), so we still go through the helper.
+  return handleJson(res);
 }

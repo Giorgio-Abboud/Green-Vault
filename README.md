@@ -21,7 +21,7 @@ All data is persisted in your local PostgreSQL database.
 
 ## Environment Files and Postgres Configuration
 
-### 1️⃣ Internal Service (`internal/.env.docker`)
+### Internal Service (`internal/.env.docker`)
 Create this file:
 ```
 # Connect from container to your host's Postgres
@@ -36,15 +36,26 @@ DB_URL=postgres://username:password@localhost:5432/dbname?sslmode=disable
 
 JWT_SECRET=change-me
 ```
+* Update ```username```, ```password```, and ```dbname``` to your actual credentials
 
-### 2️⃣ Postgres Setup
+### UI Service (`ui/.env`)
+Create this file:
+```
+VITE_CALC_BASE_URL=http://localhost:8000
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+### Analyzer Service (`analyzer/.env`)
+TODO
+
+### Postgres Setup
 You must have:
 * A Postgres user and database created manually:
 ```
 CREATE USER your_user WITH PASSWORD 'your_password';
 CREATE DATABASE dbname OWNER your_user;
 ```
-* Allow Docker containers to connect:
+Allow Docker containers to connect:
 - In ```postgresql.conf```:
 ```
 listen_addresses = '*'

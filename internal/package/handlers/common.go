@@ -2,8 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 )
+
+var ErrUnauthorized = errors.New("unauthorized")
 
 // JSONResponse defines the unified structure for all API responses.
 type JSONResponse struct {

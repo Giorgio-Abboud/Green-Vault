@@ -47,6 +47,18 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (*models.User,
 	return &u, nil
 }
 
+// GetUserByID returns the user with the requested id
+func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
+	if id == uuid.Nil {
+		return nil, errors.New("id required")
+	}
+	var u models.User
+	if err := s.DB.WithContext(ctx).First(&u, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
 // ---------- User Fills ----------
 
 // CreateUserFill creates a new set of fills for the provided user
