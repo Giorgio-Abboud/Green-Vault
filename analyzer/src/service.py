@@ -2,67 +2,62 @@ import logging
 import uuid
 from typing import Dict, Tuple
 
-# ---- metric calculators (stubs) ----
-def analyze(timestamp: str, price: str, quantity: str, side: str) -> Dict:
+def analyze(timestamp: str, price: float, quantity: int, side: str) -> Dict[str, float]:
     logging.info("Starting ANALYSIS...")
-    # TODO real implementation of analysis
-    # example
+    # TODO: Real analysis implementation
+
+    
+    # Returned values
     return {
-        "vwap_slippage": "0.15",
-        "shortfall": "0.04",
-        "effective_spread": "0.02",
-        "realized_spread": "0.01",
-        "market_impact": "0.05",
-        "drift": "0.03",
+        "vwap_slippage": 0.5,
+        "shortfall": 0.1,
+        "effective_spread": 0.2,
+        "realized_spread": 0.3,
+        "market_impact": 0.4,
+        "drift": 0.5,
     }
 
-def estimate(timestamp: str, price: str, quantity: str, side: str) -> Dict:
+def estimate(timestamp: str, price: float, quantity: int, side: str) -> Dict[str, float]:
     logging.info("Starting ESTIMATION...")
-    # TODO real implementation of estimation
-    # example
+    # TODO: Real estimation implementation
+
+
+    # Returned values
     return {
-        "vwap_slippage": "0.20",
-        "shortfall": "0.05",
-        "effective_spread": "0.03",
-        "realized_spread": "0.02",
-        "market_impact": "0.06",
-        "drift": "0.04",
+        "vwap_slippage": 0.9,
+        "shortfall": 0.8,
+        "effective_spread": 0.7,
+        "realized_spread": 0.6,
+        "market_impact": 0.5,
+        "drift": 0.4,
     }
 
-# ---- orchestration ----
 def make_calculation(
     *,
     timestamp: str,
-    price: str,
-    quantity: str,
+    price: float,
+    quantity: int,
     side: str,
     symbol: str,
     mode: str,
 ) -> Tuple[bool, str, Dict, Dict]:
-    """
-    Returns: (ok, request_id, fills_dict, metrics_dict)
-    """
-    # normalized mode expected here
-    m = (mode or "").strip().lower()
-
+    logging.info("make_calculation called (mode=%s)", mode)
     fills = {
         "timestamp": timestamp,
         "price": price,
         "quantity": quantity,
         "side": side,
         "symbol": symbol,
-        "mode": m,
+        "mode": mode,
     }
 
-    if m == "analyze":
+    if mode == "analyze":
         metrics = analyze(timestamp, price, quantity, side)
-    elif m == "estimate":
+    elif mode == "estimate":
         metrics = estimate(timestamp, price, quantity, side)
     else:
         logging.warning("Unknown mode %r; defaulting to analyze", mode)
         metrics = analyze(timestamp, price, quantity, side)
-        
-    ok = True
-    req_id = str(uuid.uuid4())
 
-    return ok, req_id, fills, metrics
+    req_id = str(uuid.uuid4())
+    return True, req_id, fills, metrics

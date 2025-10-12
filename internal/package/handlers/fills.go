@@ -12,21 +12,21 @@ import (
 
 type SaveFillIn struct {
 	Fill struct {
-		Timestamp string `json:"timestamp"` // RFC3339
-		Price     string `json:"price"`
-		Quantity  string `json:"quantity"`
-		Side      string `json:"side"`
-		Symbol    string `json:"symbol"`
-		Mode      string `json:"mode"`
-		Result    string `json:"result"`
+		Timestamp string  `json:"timestamp"` // RFC3339 string from UI
+		Price     float64 `json:"price"`     // number
+		Quantity  int64   `json:"quantity"`  // number (int)
+		Side      string  `json:"side"`
+		Symbol    string  `json:"symbol"`
+		Mode      string  `json:"mode"`
+		Result    string  `json:"result"`
 	} `json:"fill"`
 	Metrics struct {
-		VwapSlippage    string `json:"vwap_slippage"`
-		Shortfall       string `json:"shortfall"`
-		EffectiveSpread string `json:"effective_spread"`
-		RealizedSpread  string `json:"realized_spread"`
-		MarketImpact    string `json:"market_impact"`
-		Drift           string `json:"drift"`
+		VwapSlippage    float64 `json:"vwap_slippage"`
+		Shortfall       float64 `json:"shortfall"`
+		EffectiveSpread float64 `json:"effective_spread"`
+		RealizedSpread  float64 `json:"realized_spread"`
+		MarketImpact    float64 `json:"market_impact"`
+		Drift           float64 `json:"drift"`
 	} `json:"metrics"`
 	ClientRequestID string `json:"client_request_id"`
 }
