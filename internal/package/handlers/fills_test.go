@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func TestSaveFill(t *testing.T) {
@@ -27,8 +29,8 @@ func TestSaveFill(t *testing.T) {
 			bodyJSON: map[string]any{
 				"fill": map[string]any{
 					"timestamp": "not-a-time",
-					"price":     "1",
-					"quantity":  "1",
+					"price":     1.0,
+					"quantity":  1,
 					"side":      "buy",
 					"symbol":    "XYZ",
 					"mode":      "Analyze",
@@ -44,20 +46,20 @@ func TestSaveFill(t *testing.T) {
 			bodyJSON: map[string]any{
 				"fill": map[string]any{
 					"timestamp": "2025-10-06T14:00:00Z",
-					"price":     "100.5",
-					"quantity":  "10",
+					"price":     100.5,
+					"quantity":  10,
 					"side":      "buy",
 					"symbol":    "AAPL",
 					"mode":      "Analyze",
 					"result":    "SUCCESS",
 				},
 				"metrics": map[string]any{
-					"vwap_slippage":    "0.15",
-					"shortfall":        "0.04",
-					"effective_spread": "0.02",
-					"realized_spread":  "0.01",
-					"market_impact":    "0.05",
-					"drift":            "0.03",
+					"vwap_slippage":    0.15,
+					"shortfall":        0.04,
+					"effective_spread": 0.02,
+					"realized_spread":  0.01,
+					"market_impact":    0.05,
+					"drift":            0.03,
 				},
 				"client_request_id": "abc-123",
 			},
@@ -76,6 +78,8 @@ func TestSaveFill(t *testing.T) {
 				req.Header.Set("Content-Type", "application/json")
 			}
 			rr := httptest.NewRecorder()
+
+			req = withUser(req, uuid.New())
 
 			SaveFill(app).ServeHTTP(rr, req)
 

@@ -25,9 +25,9 @@ type UserFill struct {
 
 	Symbol    string    `gorm:"type:text"`
 	Timestamp time.Time `gorm:"type:timestamptz"`
-	Price     string    `gorm:"type:text"`
+	Price     float64   `gorm:"type:double precision"`
 	Side      string    `gorm:"type:text"`
-	Quantity  string    `gorm:"type:text"`
+	Quantity  int64     `gorm:"type:bigint"`
 	Mode      string    `gorm:"type:text"`
 	Result    string    `gorm:"type:text"`
 
@@ -40,10 +40,10 @@ type Metric struct {
 	ID         uuid.UUID `gorm:"type:uuid;primaryKey"`
 	UserFillID uuid.UUID `gorm:"type:uuid;not null;uniqueIndex"`
 
-	VwapSlippage    string `gorm:"type:text"`
-	Shortfall       string `gorm:"type:text"`
-	EffectiveSpread string `gorm:"type:text"`
-	RealizedSpread  string `gorm:"type:text"`
-	MarketImpact    string `gorm:"type:text"`
-	Drift           string `gorm:"type:text"`
+	VwapSlippage    float64 `gorm:"type:double precision"`
+	Shortfall       float64 `gorm:"type:double precision"`
+	EffectiveSpread float64 `gorm:"type:double precision"`
+	RealizedSpread  float64 `gorm:"type:double precision"`
+	MarketImpact    float64 `gorm:"type:double precision"`
+	Drift           float64 `gorm:"type:double precision"`
 }
