@@ -226,7 +226,7 @@ def _tp_lookup(df: pd.DataFrame, timestamp: pd.Timestamp) -> float:
 def _tp_at_offset_prepared(df: pd.DataFrame, timestamp: pd.Timestamp, offset: pd.Timedelta) -> float:
     """
     Typical price at 'timestamp + offset', clamped into [first_start, last_end).
-    Used by realized-spread to probe the mid after a horizon (e.g., +5 minutes).
+    Used by realized-spread to probe the mid after a horizon (e.g., +1 minutes).
     """
 
     target = timestamp + offset
@@ -371,7 +371,7 @@ def realized_spread_proxy_bps(
     side: int,
     fills: pd.DataFrame,
     bars: pd.DataFrame,
-    horizon: pd.Timedelta = pd.Timedelta(minutes=5),
+    horizon: pd.Timedelta = pd.Timedelta(minutes=1),
 ) -> float:
     """
     Qty-weighted realized spread proxy in basis points.
@@ -517,8 +517,8 @@ def compute_all_metrics(
     order_qty: float,
     *,
     arrival_ts: Optional[pd.Timestamp] = None,
-    realized_horizon: pd.Timedelta = pd.Timedelta(minutes=5),
-    ref_horizon: pd.Timedelta = pd.Timedelta(minutes=5),  # reserved for future use
+    realized_horizon: pd.Timedelta = pd.Timedelta(minutes=1),
+    ref_horizon: pd.Timedelta = pd.Timedelta(minutes=1),  # reserved for future use
     interval_minutes: int = 1,                             # bar size hint for UIs
     now: Optional[pd.Timestamp] = None,
 ) -> Dict[str, Any]:
@@ -553,12 +553,10 @@ def compute_all_metrics(
         "market_vwap": float(market_v) if np.isfinite(market_v) else float(np.nan),
         "vwap_slippage_bps": float(vwap_slip) if np.isfinite(vwap_slip) else float(np.nan),
         "effective_spread_bps": float(eff_spread) if np.isfinite(eff_spread) else float(np.nan),
-        "realized_spread_5m_bps": float(realized_spread) if np.isfinite(realized_spread) else float(np.nan),
+        "realized_spread_1m_bps": float(realized_spread) if np.isfinite(realized_spread) else float(np.nan),
         "impact_bps": float(impact) if np.isfinite(impact) else float(np.nan),
         "implementation_shortfall_bps": float(impl_short) if np.isfinite(impl_short) else float(np.nan),
-        "timing_drift_bps": float(timing) if np.isfinite(timing) else float(np.nan),
-        "notes": ["OHLCV-only; TP(HLC3) as mid proxy; overlap-weighted volume"],
-        # "computed_at": str(now_ts),  # uncomment if you want this in output
+        "timing_drift_bps": float(timing) if np.isfinite(timing) else float(np.nan)
     }
 
     log.info(

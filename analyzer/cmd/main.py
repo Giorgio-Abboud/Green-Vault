@@ -99,13 +99,50 @@ class Fill(BaseModel):
     symbol: Ticker
     mode: RequestMode
 
+# =============================================================================
+# Metrics Output Schema — Examples & Conventions
+#
+# All fields are optional numeric values (float) and may be null when
+# a metric is not computable for the given input/window/data.
+#
+# Units:
+# - trade_vwap, market_vwap: PRICE (e.g., USD/share)
+# - All *_bps fields: basis points (bps). 1 bps = 0.01% = 0.0001 in ratio terms
+#
+# Missing values:
+# - Use JSON `null` (Python None) when a metric cannot be computed
+#   (e.g., no overlapping bars, zero effective volume, missing side, etc.).
+#
+# Rounding (suggested for presentation; store full precision if you like):
+# - Prices: 4–6 decimals
+# - BPS metrics: 2 decimals
+#
+# --------------------------
+# Example JSON (full set)
+# --------------------------
+# {
+#   "trade_vwap": 190.1200,
+#   "market_vwap": 190.0854,
+#   "vwap_slippage_bps": 18.20,
+#   "effective_spread_bps": 5.40,
+#   "realized_spread_5m_bps": -7.10,
+#   "impact_bps": 12.30,
+#   "implementation_shortfall_bps": 22.55,
+#   "timing_drift_bps": 3.90
+# }
+# =============================================================================
+
+MetricValue = Annotated[float | None, Field(default=None)]
+
 class Metric(BaseModel):
-    vwap_slippage: str
-    shortfall: str
-    effective_spread: str
-    realized_spread: str
-    market_impact: str
-    drift: str
+    trade_vwap: MetricValue
+    market_vwap: MetricValue
+    vwap_slippage_bps: MetricValue
+    effective_spread_bps: MetricValue
+    realized_spread_5m_bps: MetricValue
+    impact_bps: MetricValue
+    implementation_shortfall_bps: MetricValue
+    timing_drift_bps: MetricValue
 
 class CalcOut(BaseModel):
     ok: bool
