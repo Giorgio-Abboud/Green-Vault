@@ -154,29 +154,34 @@ class CalcOut(BaseModel):
 # -------------------- Endpoint --------------------
 @app.post("/calculate", response_model=CalcOut)
 def calculate(body: CalcIn):
-    """
-    Accept input from the UI (which sends `request`), map to `mode`,
-    and return { ok, request_id, fills, metrics }.
-    """
     logging.info("Received /calculate")
+    try:
+        # Map request -> normalized mode
+        req = (body.request or "").strip().lower()
+        if req == "analyze":
+            mode = "analyze"
+        elif req == "estimate":
+            mode = "estimate"
+        else:
+            logging.warning("Unknown request %r; defaulting to analyze", body.request)
+            mode = "analyze"
 
-    # Map request -> normalized mode
-    req = (body.request or "").strip().lower()
-    if req == "analyze":
-        mode = "analyze"
-    elif req == "estimate":
-        mode = "estimate"
-    else:
-        logging.warning("Unknown request %r; defaulting to analyze", body.request)
-        mode = "analyze"
+        ok, req_id, fills, metrics = make_calculation(
+            timestamp=body.timestamp,
+            price=body.price,
+            quantity=body.quantity,
+            side=body.side,
+            symbol=body.symbol,
+            mode=mode,
+        )
 
-    ok, req_id, fills, metrics = make_calculation(
-        timestamp=body.timestamp,
-        price=body.price,
-        quantity=body.quantity,
-        side=body.side,
-        symbol=body.symbol,
-        mode=mode,
-    )
+        return {"ok": ok, "request_id": req_id, "fills": fills, "metrics": metrics}
 
-    return {"ok": ok, "request_id": req_id, "fills": fills, "metrics": metrics}
+    except Exception as e:
+        logging.exception("Error in /calculate")
+        return {
+            "ok": False,
+            "request_id": "",
+            "fills": None,
+            "metrics": {"error": str(e)},
+        }

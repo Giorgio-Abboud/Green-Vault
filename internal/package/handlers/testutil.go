@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
@@ -99,6 +100,11 @@ func newTestApp(t *testing.T) *App {
 		Store:     newFakeStore(),
 		JWTSecret: "test-secret",
 	}
+}
+
+func withUser(req *http.Request, userID uuid.UUID) *http.Request {
+	ctx := context.WithValue(req.Context(), ctxUserIDKey, userID)
+	return req.WithContext(ctx)
 }
 
 /*** JSON helpers ***/

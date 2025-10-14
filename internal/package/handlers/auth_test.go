@@ -161,14 +161,14 @@ func TestMe(t *testing.T) {
 
 	Me(app).ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusNotImplemented {
-		t.Fatalf("status = %d; want %d", rr.Code, http.StatusNotImplemented)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d; want %d", rr.Code, http.StatusUnauthorized)
 	}
 	res := decodeStdResp(t, rr)
 	if res.Ok {
-		t.Fatal("expected ok=false for not implemented")
+		t.Fatal("expected ok=false for unauthorized")
 	}
-	if !strings.Contains(res.Error, "not implemented") {
-		t.Fatalf("expected 'not implemented' error, got: %s", res.Error)
+	if !strings.Contains(res.Error, "unauthorized") {
+		t.Fatalf("expected 'unauthorized' error, got: %s", res.Error)
 	}
 }
