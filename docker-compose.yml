@@ -17,8 +17,8 @@ services:
     image: green-vault-analyzer
     ports: ["8000:8000"]
     restart: unless-stopped
-    environment: 
-      TWELVE_DATA_API_KEY: ${TWELVE_DATA_API_KEY}
+    env_file:
+      - ./analyzer/.env
 
   internal:
     build: ./internal

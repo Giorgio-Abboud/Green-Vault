@@ -36,14 +36,16 @@ def analyze(timestamp: str, price: str, quantity: str, side: str, symbol: str) -
     price_float = float(price)
     quantity_int = int(quantity)
 
-    # Create the start and end dates for the API call
+    # Execution window (±1 minute) in market time
     start_date, end_date = build_one_minute_window(str(timestamp))
-
-    # Fetch a slightly expanded bar range to ensure partial minutes are included
     window_start_ts = pd.Timestamp(start_date)
     window_end_ts = pd.Timestamp(end_date)
+
+    # Metrics need bars beyond the execution window (for realized spread, etc.)
+    realized_horizon = pd.Timedelta(minutes=1)
+
     fetch_start = window_start_ts.floor("min")
-    fetch_end = window_end_ts.ceil("min")
+    fetch_end = (window_end_ts + realized_horizon).ceil("min")
 
     # Create a dataframe containing all the stock bars between fetch_start and fetch_end
     ohlcv_df = get_time_series(symbol, "1min", fetch_start.to_pydatetime(), fetch_end.to_pydatetime())
@@ -86,18 +88,13 @@ def analyze(timestamp: str, price: str, quantity: str, side: str, symbol: str) -
     window_end = window_end_ts
 
     if bars_tz is not None and len(bars_df):
-        if window_start.tzinfo is None:
-            window_start = window_start.tz_localize(bars_tz)
-        else:
-            window_start = window_start.tz_convert(bars_tz)
-        if window_end.tzinfo is None:
-            window_end = window_end.tz_localize(bars_tz)
-        else:
-            window_end = window_end.tz_convert(bars_tz)
+        window_start = window_start.tz_convert(bars_tz)
+        window_end = window_end.tz_convert(bars_tz)
 
-    # Keep only bars that overlap the execution window
+    # Retain bars needed for the execution window *and* the realized horizon
+    horizon_end = window_end + realized_horizon
     bars_df = bars_df[
-        (bars_df["end"] > window_start) & (bars_df["start"] < window_end)
+        (bars_df["end"] > window_start) & (bars_df["start"] < horizon_end)
     ].reset_index(drop=True)
 
     if bars_df.empty:
@@ -108,8 +105,8 @@ def analyze(timestamp: str, price: str, quantity: str, side: str, symbol: str) -
             window_end,
         )
         return {
-            "trade_vwap": float("nan"),
-            "market_vwap": float("nan"),
+            # "trade_vwap": float("nan"),
+            # "market_vwap": float("nan"),
             "vwap_slippage_bps": float("nan"),
             "effective_spread_bps": float("nan"),
             "realized_spread_1m_bps": float("nan"),
@@ -133,6 +130,7 @@ def analyze(timestamp: str, price: str, quantity: str, side: str, symbol: str) -
         bars_df,
         trade_window,
         order_qty=quantity_int,
+        realized_horizon=realized_horizon,
     )
 
     return metrics
@@ -173,12 +171,12 @@ def make_calculation(
     }
 
     if mode == "analyze":
-        metrics = analyze(timestamp, price, quantity, side)
+        metrics = analyze(timestamp, price, quantity, side, symbol)
     elif mode == "estimate":
-        metrics = estimate(timestamp, price, quantity, side)
+        metrics = estimate(timestamp, price, quantity, side, symbol)
     else:
         logging.warning("Unknown mode %r; defaulting to analyze", mode)
-        metrics = analyze(timestamp, price, quantity, side)
+        metrics = analyze(timestamp, price, quantity, side, symbol)
 
     req_id = str(uuid.uuid4())
     return True, req_id, fills, metrics
