@@ -1,7 +1,14 @@
-﻿import pandas as pd
+import sys
+from pathlib import Path
+
+import pandas as pd
 import pytest
 
-from analyzer.src.service import Window
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from analyzer.src.metric import Window
 
 TZ = "America/New_York"
 
@@ -100,4 +107,3 @@ def window_small(base_timestamps):
 @pytest.fixture(scope="module")
 def order_qty():
     return 1_000.0
-

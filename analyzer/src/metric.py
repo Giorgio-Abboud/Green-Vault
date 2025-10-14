@@ -105,10 +105,16 @@ def prepare_bars_df(bars: pd.DataFrame) -> pd.DataFrame:
     df.sort_values("start", inplace=True)
     df.reset_index(drop=True, inplace=True)
 
+    tz_info = df["start"].dt.tz
+    if hasattr(tz_info, "iloc"):
+        tz_display = tz_info.iloc[0]
+    else:
+        tz_display = tz_info
+
     log.debug(
         "Prepared bars: rows=%d, tz=%s, first=%s, last=%s",
         len(df),
-        df["start"].dt.tz.iloc[0],
+        tz_display,
         df["start"].min(),
         df["end"].max(),
     )
@@ -143,10 +149,16 @@ def prepare_fills_df(fills: pd.DataFrame) -> pd.DataFrame:
     df.sort_values("ts", inplace=True)
     df.reset_index(drop=True, inplace=True)
 
+    tz_info = df["ts"].dt.tz if len(df) else None
+    if hasattr(tz_info, "iloc"):
+        tz_display = tz_info.iloc[0]
+    else:
+        tz_display = tz_info
+
     log.debug(
         "Prepared fills: rows=%d, tz=%s, first=%s, last=%s, total_qty=%.6f",
         len(df),
-        df["ts"].dt.tz.iloc[0] if len(df) else None,
+        tz_display,
         df["ts"].min() if len(df) else None,
         df["ts"].max() if len(df) else None,
         df["qty"].sum() if len(df) else 0.0,
@@ -518,7 +530,6 @@ def compute_all_metrics(
     *,
     arrival_ts: Optional[pd.Timestamp] = None,
     realized_horizon: pd.Timedelta = pd.Timedelta(minutes=1),
-    ref_horizon: pd.Timedelta = pd.Timedelta(minutes=1),  # reserved for future use
     interval_minutes: int = 1,                             # bar size hint for UIs
     now: Optional[pd.Timestamp] = None,
 ) -> Dict[str, Any]:

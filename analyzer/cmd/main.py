@@ -130,6 +130,7 @@ class Fill(BaseModel):
 #   "implementation_shortfall_bps": 22.55,
 #   "timing_drift_bps": 3.90
 # }
+
 # =============================================================================
 
 MetricValue = Annotated[float | None, Field(default=None)]
