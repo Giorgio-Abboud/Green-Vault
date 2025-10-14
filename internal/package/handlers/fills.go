@@ -3,6 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -46,33 +48,80 @@ func SaveFill(app *App) http.HandlerFunc {
 			return
 		}
 
+		// Validation block
+		fieldErrs := map[string]string{}
+		reqID := uuid.New().String()
+
+		// Timestamp (RFC3339)
 		ts, err := time.Parse(time.RFC3339, in.Fill.Timestamp)
 		if err != nil {
-			WriteError(w, http.StatusBadRequest, err)
+			fieldErrs["timestamp"] = "must be valid RFC3339 datetime (e.g. 2025-10-12T14:00:00Z)"
+		}
+
+		// Side (buy/sell)
+		side := strings.ToLower(strings.TrimSpace(in.Fill.Side))
+		if side != "buy" && side != "sell" {
+			fieldErrs["side"] = "must be 'buy' or 'sell'"
+		}
+
+		// Mode (analyze/estimate)
+		mode := strings.ToLower(strings.TrimSpace(in.Fill.Mode))
+		if mode != "analyze" && mode != "estimate" {
+			fieldErrs["mode"] = "must be 'analyze' or 'estimate'"
+		}
+
+		// Symbol (only uppercase letters, no spaces)
+		if !regexp.MustCompile(`^[A-Z]+$`).MatchString(in.Fill.Symbol) {
+			fieldErrs["symbol"] = "must contain only uppercase letters (A to Z), no spaces"
+		}
+
+		// Price (float64)
+		if in.Fill.Price <= 0 {
+			fieldErrs["price"] = "must be a positive number"
+		}
+
+		// Quantity (int64)
+		if in.Fill.Quantity <= 0 {
+			fieldErrs["quantity"] = "must be a positive integer"
+		}
+
+		// Metrics (float64 values)
+		if in.Metrics.VwapSlippage == 0 &&
+			in.Metrics.Shortfall == 0 &&
+			in.Metrics.EffectiveSpread == 0 &&
+			in.Metrics.RealizedSpread == 0 &&
+			in.Metrics.MarketImpact == 0 &&
+			in.Metrics.Drift == 0 {
+			fieldErrs["metrics"] = "metrics must contain numeric values"
+		}
+
+		// If any validation failed
+		if len(fieldErrs) > 0 {
+			WriteValidationError(w, reqID, fieldErrs)
 			return
 		}
 
 		fillID := uuid.New()
 		metricID := uuid.New()
 
-		// 1) create fill
+		// Normalize validated values
 		uf := &models.UserFill{
 			ID:        fillID,
 			UserID:    userID,
 			Symbol:    in.Fill.Symbol,
 			Timestamp: ts,
 			Price:     in.Fill.Price,
-			Side:      in.Fill.Side,
+			Side:      side,
 			Quantity:  in.Fill.Quantity,
-			Mode:      in.Fill.Mode,
+			Mode:      mode,
 			Result:    in.Fill.Result,
 		}
+
 		if _, err := app.Store.CreateUserFill(r.Context(), uf); err != nil {
 			WriteError(w, http.StatusInternalServerError, err)
 			return
 		}
 
-		// 2) create metrics
 		m := &models.Metric{
 			ID:              metricID,
 			UserFillID:      uf.ID,
@@ -89,6 +138,8 @@ func SaveFill(app *App) http.HandlerFunc {
 		}
 
 		WriteJSON(w, http.StatusCreated, map[string]any{
+			"ok":        true,
+			"req_id":    reqID,
 			"fill_id":   fillID,
 			"metric_id": metricID,
 		})

@@ -36,7 +36,17 @@ DB_URL=postgres://username:password@localhost:5432/dbname?sslmode=disable
 
 JWT_SECRET=change-me
 ```
+
+### Update `DB_URL` with valid auth
 * Update ```username```, ```password```, and ```dbname``` to your actual credentials
+
+### Update `JWT_SECRET` with a unique value
+* Make sure you have ```openssl``` installed. Linux and Mac users already have it. Windows users can run ```openssl``` using ````wsl```
+* Update ```change-me``` to an unique random generated hex value by running
+```
+openssl rand -hex 32
+```
+* NOTE: If you ever update ```JWT_SECRET``` again, the session for the previous created users will not be remembered.
 
 ### UI Service (`ui/.env`)
 Create this file:
@@ -46,7 +56,17 @@ VITE_API_BASE_URL=http://localhost:8080
 ```
 
 ### Analyzer Service (`analyzer/.env`)
-TODO
+The analyzer makes external requests to Twelve Data. Set up your API key once and keep it out of source control.
+#### Steps
+1. Go to https://twelvedata.com/login and sign up / sign in.
+2. Open **API keys** in your dashboard and click **Reveal** to copy your key.
+3. In the project root, create a file named `.env` with:
+```
+TWELVE_DATA_API_KEY=your_secret_twelve_data_api_key
+```
+
+#### Note
+- Do **not** commit `.env` (it should already be in `.gitignore`).
 
 ### Postgres Setup
 You must have:
@@ -85,18 +105,6 @@ rt.Get("/transactions", handlers.ListTransactions(app))
 ```
 
 ### Analyzer (FastAPI)
-
-The analyzer makes external requests to Twelve Data. Set up your API key once and keep it out of source control.
-#### Steps
-1. Go to https://twelvedata.com/login and sign up / sign in.
-2. Open **API keys** in your dashboard and click **Reveal** to copy your key.
-3. In the project root, create a file named `.env` with:
-```
-TWELVE_DATA_API_KEY=your_secret_twelve_data_api_key
-```
-
-#### Note
-- Do **not** commit `.env` (it should already be in `.gitignore`).
 
 * Located in analyzer/cmd/main.py
 * Computes trade metrics and returns structured JSON:
