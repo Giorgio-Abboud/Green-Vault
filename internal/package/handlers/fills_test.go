@@ -38,7 +38,7 @@ func TestSaveFill(t *testing.T) {
 				},
 				"metrics": map[string]any{},
 			},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusUnprocessableEntity,
 			wantOK:     false,
 		},
 		{

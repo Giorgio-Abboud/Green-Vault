@@ -30,3 +30,17 @@ func WriteError(w http.ResponseWriter, status int, err error) {
 	resp := JSONResponse{Ok: false, Error: err.Error()}
 	_ = json.NewEncoder(w).Encode(resp)
 }
+
+// WriteValidationError sends a structured 422 response with per-field errors.
+func WriteValidationError(w http.ResponseWriter, reqID string, fieldErrs map[string]string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnprocessableEntity)
+
+	resp := map[string]any{
+		"ok":           false,
+		"req_id":       reqID,
+		"error":        "validation failed",
+		"field_errors": fieldErrs,
+	}
+	_ = json.NewEncoder(w).Encode(resp)
+}
