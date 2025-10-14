@@ -85,6 +85,19 @@ rt.Get("/transactions", handlers.ListTransactions(app))
 ```
 
 ### Analyzer (FastAPI)
+
+The analyzer makes external requests to Twelve Data. Set up your API key once and keep it out of source control.
+#### Steps
+1. Go to https://twelvedata.com/login and sign up / sign in.
+2. Open **API keys** in your dashboard and click **Reveal** to copy your key.
+3. In the project root, create a file named `.env` with:
+```
+TWELVE_DATA_API_KEY=your_secret_twelve_data_api_key
+```
+
+#### Note
+- Do **not** commit `.env` (it should already be in `.gitignore`).
+
 * Located in analyzer/cmd/main.py
 * Computes trade metrics and returns structured JSON:
 ```

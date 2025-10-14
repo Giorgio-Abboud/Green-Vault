@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional, Literal, Annotated
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, BeforeValidator
 from src.service import make_calculation
 
 logging.basicConfig(level=logging.INFO)
@@ -80,8 +80,11 @@ app.add_middleware(
 PositivePrice = Annotated[float, Field(gt=0)]
 StrictPosInt = Annotated[int, Field(strict=True, gt=0)]
 TradeSide = Literal["buy", "sell"]
-Ticker = Annotated[str, Field(regex=r"^[A-Z]+$", strip_whitespace=True)]
-RequestMode = Annotated[Literal["analyze", "estimate"], Field(default="analyze")]
+Ticker = Annotated[str, Field(pattern=r"^[A-Z]+$", strip_whitespace=True)]
+RequestMode = Annotated[
+    Literal["analyze", "estimate"],
+    BeforeValidator(lambda v: v.strip().lower() if isinstance(v, str) else v),
+]
 
 class CalcIn(BaseModel):
     timestamp: datetime
@@ -140,7 +143,7 @@ class Metric(BaseModel):
     market_vwap: MetricValue
     vwap_slippage_bps: MetricValue
     effective_spread_bps: MetricValue
-    realized_spread_5m_bps: MetricValue
+    realized_spread_1m_bps: MetricValue
     impact_bps: MetricValue
     implementation_shortfall_bps: MetricValue
     timing_drift_bps: MetricValue
