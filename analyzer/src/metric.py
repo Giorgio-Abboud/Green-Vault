@@ -560,14 +560,14 @@ def compute_all_metrics(
     now_ts = pd.Timestamp(now) if now is not None else pd.Timestamp.now(tz=bars_df["start"].dt.tz)
 
     metrics: Dict[str, Any] = {
-        "trade_vwap": float(trade_v) if np.isfinite(trade_v) else float(np.nan),
-        "market_vwap": float(market_v) if np.isfinite(market_v) else float(np.nan),
-        "vwap_slippage_bps": float(vwap_slip) if np.isfinite(vwap_slip) else float(np.nan),
-        "effective_spread_bps": float(eff_spread) if np.isfinite(eff_spread) else float(np.nan),
-        "realized_spread_1m_bps": float(realized_spread) if np.isfinite(realized_spread) else float(np.nan),
-        "impact_bps": float(impact) if np.isfinite(impact) else float(np.nan),
-        "implementation_shortfall_bps": float(impl_short) if np.isfinite(impl_short) else float(np.nan),
-        "timing_drift_bps": float(timing) if np.isfinite(timing) else float(np.nan)
+        # "trade_vwap": float(trade_v) if np.isfinite(trade_v) else float(np.nan),
+        # "market_vwap": float(market_v) if np.isfinite(market_v) else float(np.nan),
+        "vwap_slippage": float(vwap_slip) if np.isfinite(vwap_slip) else float(np.nan),
+        "shortfall": float(impl_short) if np.isfinite(impl_short) else float(np.nan),
+        "effective_spread": float(eff_spread) if np.isfinite(eff_spread) else float(np.nan),
+        "realized_spread": float(realized_spread) if np.isfinite(realized_spread) else float(np.nan),
+        "market_impact": float(impact) if np.isfinite(impact) else float(np.nan),
+        "drift": float(timing) if np.isfinite(timing) else float(np.nan)
     }
 
     log.info(

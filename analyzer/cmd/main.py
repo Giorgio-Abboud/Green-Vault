@@ -139,14 +139,14 @@ class Fill(BaseModel):
 MetricValue = Annotated[float | None, Field(default=None)]
 
 class Metric(BaseModel):
-    trade_vwap: MetricValue
-    market_vwap: MetricValue
-    vwap_slippage_bps: MetricValue
-    effective_spread_bps: MetricValue
-    realized_spread_1m_bps: MetricValue
-    impact_bps: MetricValue
-    implementation_shortfall_bps: MetricValue
-    timing_drift_bps: MetricValue
+    # trade_vwap: MetricValue
+    # market_vwap: MetricValue
+    vwap_slippage: MetricValue
+    shortfall: MetricValue
+    effective_spread: MetricValue
+    realized_spread: MetricValue
+    market_impact: MetricValue
+    drift: MetricValue
 
 class CalcOut(BaseModel):
     ok: bool

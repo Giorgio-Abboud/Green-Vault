@@ -105,8 +105,8 @@ def analyze(timestamp: str, price: str, quantity: str, side: str, symbol: str) -
             window_end,
         )
         return {
-            "trade_vwap": float("nan"),
-            "market_vwap": float("nan"),
+            # "trade_vwap": float("nan"),
+            # "market_vwap": float("nan"),
             "vwap_slippage_bps": float("nan"),
             "effective_spread_bps": float("nan"),
             "realized_spread_1m_bps": float("nan"),
