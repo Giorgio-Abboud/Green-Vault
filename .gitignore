@@ -1,4 +1,7 @@
 ui/node_modules
+venv
+analyzer/src/if_db_increase.py
 internal/.env.docker
 internal/.env.local
+.env
 ui/.env
