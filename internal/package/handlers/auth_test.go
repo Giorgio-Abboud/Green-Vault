@@ -34,18 +34,106 @@ func TestSignup(t *testing.T) {
 		wantOK     bool
 	}{
 		{
-			name: "valid_request",
+			name: "invalid email",
 			bodyJSON: map[string]any{
-				"email":     "User@EXAMPLE.com",
+				"email":     "roary@fiu.@edu",
 				"name":      "Roary",
-				"last_name": "Panther",
-				"password":  "fiu",
+				"last_name": "The Panther",
+				"password":  "Roary!panther25",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+			wantOK:     false,
+		},
+		{
+			name: "invalid password (short)",
+			bodyJSON: map[string]any{
+				"email":     "roary@fiu.edu",
+				"name":      "Roary",
+				"last_name": "The Panther",
+				"password":  "short",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+			wantOK:     false,
+		},
+		{
+			name: "invalid password (no uppercase)",
+			bodyJSON: map[string]any{
+				"email":     "roary@fiu.edu",
+				"name":      "Roary",
+				"last_name": "The Panther",
+				"password":  "lowercasenoupper!10",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+			wantOK:     false,
+		},
+		{
+			name: "invalid password (no lowercase)",
+			bodyJSON: map[string]any{
+				"email":     "roary@fiu.edu",
+				"name":      "Roary",
+				"last_name": "The Panther",
+				"password":  "UPPERCASEPASSWORD!10",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+			wantOK:     false,
+		},
+		{
+			name: "invalid password (no digits)",
+			bodyJSON: map[string]any{
+				"email":     "roary@fiu.edu",
+				"name":      "Roary",
+				"last_name": "The Panther",
+				"password":  "UPPERCASEPASSWORD!digits?",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+			wantOK:     false,
+		},
+		{
+			name: "invalid password (no symbols)",
+			bodyJSON: map[string]any{
+				"email":     "roary@fiu.edu",
+				"name":      "Roary",
+				"last_name": "The Panther",
+				"password":  "WhereAreMySymbols2025",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+			wantOK:     false,
+		},
+		{
+			name: "invalid name",
+			bodyJSON: map[string]any{
+				"email":     "roary@fiu.edu",
+				"name":      "Roary]",
+				"last_name": "The Panther",
+				"password":  "Roary!panther25",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+			wantOK:     false,
+		},
+		{
+			name: "invalid last name",
+			bodyJSON: map[string]any{
+				"email":     "roary@fiu.@edu",
+				"name":      "Roary",
+				"last_name": "The Panther!",
+				"password":  "Roary!panther25",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+			wantOK:     false,
+		},
+		{
+			name: "valid request",
+			bodyJSON: map[string]any{
+				"email":     "roary@fiu.edu",
+				"name":      "Roary",
+				"last_name": "The Panther",
+				"password":  "Roary!panther25",
 			},
 			wantStatus: http.StatusCreated,
 			wantOK:     true,
 		},
 		{
-			name: "bad_json",
+			name: "bad json",
 			bodyJSON: map[string]any{
 				"email": 123,
 			},
@@ -53,7 +141,7 @@ func TestSignup(t *testing.T) {
 			wantOK:     false,
 		},
 		{
-			name: "duplicate_email",
+			name: "duplicate email",
 			bodyJSON: map[string]any{
 				"email":     "dupe@example.com",
 				"name":      "A",
@@ -87,10 +175,10 @@ func TestLogin(t *testing.T) {
 
 	// Seed a user via Signup to produce a real bcrypt hash
 	seed := map[string]any{
-		"email":     "ok@example.com",
-		"name":      "Ok",
-		"last_name": "User",
-		"password":  "secret123",
+		"email":     "roary@fiu.edu",
+		"name":      "Roary",
+		"last_name": "The Panther",
+		"password":  "Roary!panther25",
 	}
 	{
 		req := httptest.NewRequest("POST", "/v1/users", mustJSONBody(t, seed))
@@ -112,7 +200,7 @@ func TestLogin(t *testing.T) {
 			name: "wrong email",
 			bodyJSON: map[string]any{
 				"email":    "wrong@example.com",
-				"password": "secret123",
+				"password": "wrongExample25!",
 			},
 			wantStatus: http.StatusUnauthorized,
 			wantOK:     false,
@@ -120,8 +208,8 @@ func TestLogin(t *testing.T) {
 		{
 			name: "wrong password",
 			bodyJSON: map[string]any{
-				"email":    "ok@example.com",
-				"password": "badpw",
+				"email":    "roary@fiu.edu",
+				"password": "This is not the password!25",
 			},
 			wantStatus: http.StatusUnauthorized,
 			wantOK:     false,
@@ -129,8 +217,8 @@ func TestLogin(t *testing.T) {
 		{
 			name: "ok",
 			bodyJSON: map[string]any{
-				"email":    "ok@example.com",
-				"password": "secret123",
+				"email":    "roary@fiu.edu",
+				"password": "Roary!panther25",
 			},
 			wantStatus: http.StatusOK,
 			wantOK:     true,

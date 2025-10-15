@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
@@ -17,45 +18,140 @@ type App struct {
 	JWTSecret string
 }
 
+var (
+	reEmail    = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+	reLower    = regexp.MustCompile(`[a-z]`)
+	reUpper    = regexp.MustCompile(`[A-Z]`)
+	reDigit    = regexp.MustCompile(`\d`)
+	reSymbol   = regexp.MustCompile(`[^A-Za-z0-9]`)
+	reName     = regexp.MustCompile(`^[A-Za-z' -]{2,100}$`)
+	reLastName = regexp.MustCompile(`^[A-Za-z' -]{2,100}$`)
+)
+
 // POST /v1/users
 func Signup(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		reqID := uuid.NewString()
+
 		type in struct {
 			Email    string `json:"email"`
 			Name     string `json:"name"`
 			LastName string `json:"last_name"`
 			Password string `json:"password"`
 		}
+
 		var body in
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			WriteError(w, http.StatusBadRequest, err)
 			return
 		}
+
+		// SignUp validation section
+		fieldErrs := make(map[string]string)
+
+		// Normalize inputs
 		email := strings.ToLower(strings.TrimSpace(body.Email))
-		hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+		name := strings.TrimSpace(body.Name)
+		lastName := strings.TrimSpace(body.LastName)
+		password := body.Password
+
+		// Email validation
+		if email == "" {
+			fieldErrs["email"] = "required"
+		} else if len(email) > 254 {
+			fieldErrs["email"] = "too long"
+		} else if !reEmail.MatchString(email) {
+			fieldErrs["email"] = "invalid format"
+		} else {
+			// Check if email already exists in the DB
+			if existing, err := app.Store.GetUserByEmail(r.Context(), email); err == nil && existing != nil {
+				WriteError(w, http.StatusConflict, errors.New("email already registered"))
+				return
+			}
+		}
+
+		// Password validation
+		if password == "" {
+			fieldErrs["password"] = "required"
+		} else {
+			if len(password) < 12 {
+				fieldErrs["password"] = "too short (min 12 chars)"
+			} else if len(password) > 128 {
+				fieldErrs["password"] = "too long"
+			} else {
+				switch {
+				case !reLower.MatchString(password):
+					fieldErrs["password"] = "must contain a lowercase letter"
+				case !reUpper.MatchString(password):
+					fieldErrs["password"] = "must contain an uppercase letter"
+				case !reDigit.MatchString(password):
+					fieldErrs["password"] = "must contain a digit"
+				case !reSymbol.MatchString(password):
+					fieldErrs["password"] = "must contain a symbol"
+				}
+			}
+		}
+
+		// Name validation
+		if name == "" {
+			fieldErrs["name"] = "required"
+		} else if len(name) > 100 {
+			fieldErrs["name"] = "too long"
+		} else {
+			if !reName.MatchString(name) {
+				fieldErrs["name"] = "invalid characters"
+			}
+		}
+
+		// Last name validation
+		if lastName == "" {
+			fieldErrs["last_name"] = "required"
+		} else if len(lastName) > 100 {
+			fieldErrs["last_name"] = "too long"
+		} else {
+			if !reLastName.MatchString(lastName) {
+				fieldErrs["last_name"] = "invalid characters"
+			}
+		}
+
+		// If any validation errors exist, return 422
+		if len(fieldErrs) > 0 {
+			WriteValidationError(w, reqID, fieldErrs)
+			return
+		}
+
+		// Passed validation, generate hash
+		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
 			WriteError(w, http.StatusInternalServerError, err)
 			return
 		}
+
 		u := &models.User{
 			ID:           uuid.New(),
 			Email:        email,
-			Name:         body.Name,
-			LastName:     body.LastName,
+			Name:         name,
+			LastName:     lastName,
 			PasswordHash: string(hash),
 		}
+
 		out, err := app.Store.CreateUser(r.Context(), u)
 		if err != nil {
 			WriteError(w, http.StatusConflict, err)
 			return
 		}
-		WriteJSON(w, http.StatusCreated, map[string]any{"id": out.ID, "email": out.Email})
+
+		WriteJSON(w, http.StatusCreated, map[string]any{
+			"id":    out.ID,
+			"email": out.Email,
+		})
 	}
 }
 
 // POST /v1/login
 func Login(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		reqID := uuid.NewString()
 		type in struct {
 			Email    string `json:"email"`
 			Password string `json:"password"`
@@ -65,8 +161,35 @@ func Login(app *App) http.HandlerFunc {
 			WriteError(w, http.StatusBadRequest, err)
 			return
 		}
-		email := strings.ToLower(strings.TrimSpace(body.Email))
 
+		// Login validation section
+		fieldErrs := make(map[string]string)
+
+		// Normalize inputs
+		email := strings.ToLower(strings.TrimSpace(body.Email))
+		password := body.Password
+
+		// Email validation
+		if email == "" {
+			fieldErrs["email"] = "required"
+		} else if len(email) > 254 {
+			fieldErrs["email"] = "too long"
+		} else if !reEmail.MatchString(email) {
+			fieldErrs["email"] = "invalid format"
+		}
+
+		// Password validation
+		if password == "" {
+			fieldErrs["password"] = "required"
+		}
+
+		// If any validation errors exist, return 422
+		if len(fieldErrs) > 0 {
+			WriteValidationError(w, reqID, fieldErrs)
+			return
+		}
+
+		// Passed validation, query user
 		u, err := app.Store.GetUserByEmail(r.Context(), email)
 		if err != nil {
 			WriteError(w, http.StatusUnauthorized, errors.New("invalid credentials"))
