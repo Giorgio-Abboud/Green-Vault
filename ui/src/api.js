@@ -33,3 +33,15 @@ export async function calcPost(body) {
   // FastAPI returns the payload directly (not wrapped), so we still go through the helper.
   return handleJson(res);
 }
+
+export async function apiPostRaw(path, body) {
+  const res = await fetch(`${API}${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  let json = {};
+  try { json = await res.json(); } catch {}
+  return { status: res.status, ok: res.ok, json };
+}
