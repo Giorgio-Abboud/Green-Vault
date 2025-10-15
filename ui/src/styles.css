@@ -63,3 +63,13 @@ button:disabled {
   max-width: 420px;
   margin-bottom: 12px;
 }
+
+input.error {
+  border: 2px solid #ef4444;
+  background-color: #fff5f5;
+}
+
+input.valid {
+  border: 2px solid #22c55e;
+  background-color: #f0fff4;
+}
