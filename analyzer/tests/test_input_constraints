@@ -1,0 +1,124 @@
+import pytest
+from fastapi.testclient import TestClient
+from datetime import datetime, timezone, timedelta, time
+
+from analyzer.cmd.main import app
+
+client = TestClient(app) #to create a test client for the FastAPI app
+
+# A valid payload to use as a base for tests
+VALID_PAYLOAD = {
+    "timestamp": "2025-06-03T10:15:37-04:00",
+    "price": 190.12,
+    "quantity": 150,
+    "side": "buy",
+    "symbol": "AAPL",
+    "request": "analyze",
+}
+
+# Helper to post JSON payload and return response
+def post(payload):
+    return client.post("/calculate", json=payload)
+
+# Sends a valid payload and expects success
+def test_valid_payload_succeeds():
+    r = post(VALID_PAYLOAD)
+    assert r.status_code == 200
+    body = r.json()
+    assert body.get("ok") is True
+
+#TESTS that have "mark.xfail" because the validation is not yet implemented
+@pytest.mark.xfail(reason="TZ-awareness validation not implemented in main.py/service", strict=False)
+def test_timestamp_must_be_tz_aware():
+    payload = VALID_PAYLOAD.copy()
+    payload["timestamp"] = "2025-06-03T10:15:37"  # naive
+    r = post(payload)
+    # Desired behavior: reject naive timestamps (422)
+    assert r.status_code == 422
+
+
+@pytest.mark.xfail(reason="Market-hours validation not implemented", strict=False)
+def test_timestamp_must_be_within_market_hours():
+    # 2025-06-03 at 09:29 ET (one minute before open)
+    payload = VALID_PAYLOAD.copy()
+    payload["timestamp"] = "2025-06-03T09:29:00-04:00"
+    r = post(payload)
+    # Desired: reject (outside 09:30–16:00 ET)
+    assert r.status_code == 422
+
+
+@pytest.mark.xfail(reason="Weekend validation not implemented", strict=False)
+def test_timestamp_cannot_be_weekend():
+    # a Saturday
+    payload = VALID_PAYLOAD.copy()
+    payload["timestamp"] = "2025-06-07T10:00:00-04:00"
+    r = post(payload)
+    assert r.status_code == 422
+
+
+@pytest.mark.xfail(reason="Holiday validation not implemented", strict=False)
+def test_timestamp_cannot_be_market_holiday():
+    # Christmas 2025 (example holiday)
+    payload = VALID_PAYLOAD.copy()
+    payload["timestamp"] = "2025-12-25T11:00:00-05:00"
+    r = post(payload)
+    assert r.status_code == 422
+
+
+def test_price_must_be_positive():
+    payload = VALID_PAYLOAD.copy()
+    payload["price"] = 0.0
+    r = post(payload)
+    # pydantic Field(gt=0) should cause 422
+    assert r.status_code == 422
+
+
+@pytest.mark.xfail(reason="Decimal-place enforcement not implemented", strict=False)
+def test_price_max_eight_decimal_places():
+    payload = VALID_PAYLOAD.copy()
+    payload["price"] = 1.123456789  # 9 decimals
+    r = post(payload)
+    # Desired: reject too many decimals
+    assert r.status_code == 422
+
+
+def test_quantity_must_be_positive_integer():
+    payload = VALID_PAYLOAD.copy()
+    payload["quantity"] = 0
+    r = post(payload)
+    # StrictPosInt gt=0 should cause 422
+    assert r.status_code == 422
+
+
+@pytest.mark.xfail(reason="Side trimming/case-tolerance not implemented", strict=False)
+def test_side_accepts_whitespace_and_case_insensitive():
+    payload = VALID_PAYLOAD.copy()
+    payload["side"] = " BUY "  # spaces and upper
+    r = post(payload)
+    # Desired: accept and normalize to "buy" -> 200
+    assert r.status_code == 200
+
+
+def test_side_must_be_buy_or_sell():
+    payload = VALID_PAYLOAD.copy()
+    payload["side"] = "hold"
+    r = post(payload)
+    # Literal validation should reject invalid side
+    assert r.status_code == 422
+
+
+def test_symbol_must_be_uppercase_letters_only_current_behavior():
+    payload = VALID_PAYLOAD.copy()
+    payload["symbol"] = "aapl"
+    r = post(payload)
+    # Current Ticker regex requires all caps; expect 422
+    assert r.status_code == 422
+
+
+@pytest.mark.xfail(reason="Allow numbers in symbol (spec) is not implemented; current regex blocks digits", strict=False)
+def test_symbol_allows_numbers_and_length_limit():
+    payload = VALID_PAYLOAD.copy()
+    payload["symbol"] = "AAPL1"  # spec: allowed; current code: rejected
+    r = post(payload)
+    # Desired: accept symbols with digits up to length 5
+    assert r.status_code == 200
