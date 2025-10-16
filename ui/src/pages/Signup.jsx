@@ -1,7 +1,16 @@
 import React, { useState } from "react";
 import { apiPostRaw } from "../api";
 
-export default function Signup(){
+function InfoTooltip({ text }) {
+  return (
+    <span className="tooltip-inline">
+      ℹ️
+      <span className="tooltip-inline-text">{text}</span>
+    </span>
+  );
+}
+
+export default function Signup() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -9,12 +18,17 @@ export default function Signup(){
   const [fieldErrors, setFieldErrors] = useState({});
   const [msg, setMsg] = useState("");
 
-  async function submit(e){
+  async function submit(e) {
     e.preventDefault();
     setMsg("");
     setFieldErrors({});
 
-    const res = await apiPostRaw("/v1/users", { email, name, last_name: lastName, password });
+    const res = await apiPostRaw("/v1/users", {
+      email,
+      name,
+      last_name: lastName,
+      password,
+    });
 
     if (res.status === 201) {
       setMsg("✅ Your profile was successfully created!");
@@ -34,76 +48,70 @@ export default function Signup(){
     setMsg(`❌ ${res.json?.error || "Unexpected error"}`);
   }
 
-  const inputClass = name =>
+  const inputClass = (name) =>
     `w-full p-2 border rounded ${fieldErrors[name] ? "error" : ""}`;
 
   return (
     <div>
       <h2>Sign up</h2>
-      <form onSubmit={submit} className="form space-y-3">
+      <form onSubmit={submit} className="form space-y-4">
         {/* Email */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div className="form-group">
+          <label>
+            Email <InfoTooltip text="Must follow the format username@domain.tld (e.g. pepito1@gmail.com)." />
+          </label>
           <input
             placeholder="email"
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value)}
             className={inputClass("email")}
             required
           />
-          {fieldErrors.email && (
-            <span style={{ color: "#ef4444", fontSize: "0.9rem" }}>
-              {fieldErrors.email}
-            </span>
-          )}
         </div>
 
         {/* First name */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div className="form-group">
+          <label>
+            Name <InfoTooltip text="Only letters A–Z with valid characters (' -). (e.g. Roary)." />
+          </label>
           <input
             placeholder="first name"
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value)}
             className={inputClass("name")}
             required
           />
-          {fieldErrors.name && (
-            <span style={{ color: "#ef4444", fontSize: "0.9rem" }}>
-              {fieldErrors.name}
-            </span>
-          )}
         </div>
 
         {/* Last name */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div className="form-group">
+          <label>
+            Last name{" "}
+            <InfoTooltip text="Only letters A–Z with valid characters (' -). (Gonzales, O'Neal)." />
+          </label>
           <input
             placeholder="last name"
             value={lastName}
-            onChange={e => setLastName(e.target.value)}
+            onChange={(e) => setLastName(e.target.value)}
             className={inputClass("last_name")}
             required
           />
-          {fieldErrors.last_name && (
-            <span style={{ color: "#ef4444", fontSize: "0.9rem" }}>
-              {fieldErrors.last_name}
-            </span>
-          )}
         </div>
 
         {/* Password */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div className="form-group">
+          <label>
+            Password{" "}
+            <InfoTooltip text="Must be 12–128 characters long and include at least one lowercase, one uppercase, one digit, and one symbol. (e.g. StrongPass#25)." />
+          </label>
           <input
             placeholder="password"
             type="password"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
             className={inputClass("password")}
             required
           />
-          {fieldErrors.password && (
-            <span style={{ color: "#ef4444", fontSize: "0.9rem" }}>
-              {fieldErrors.password}
-            </span>
-          )}
         </div>
 
         <button type="submit">Create account</button>
