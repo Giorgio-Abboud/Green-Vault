@@ -15,8 +15,11 @@ form {
 }
 
 label {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  margin-bottom: 2px;
 }
 
 input {
@@ -72,4 +75,64 @@ input.error {
 input.valid {
   border: 2px solid #22c55e;
   background-color: #f0fff4;
+}
+
+.tooltip-inline {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #2563eb;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.tooltip-inline .tooltip-inline-text {
+  visibility: hidden;
+  opacity: 0;
+  width: max-content;
+  max-width: 240px;
+  background-color: #f0f7ff;
+  color: #111;
+  border: 1px solid #bcd;
+  border-radius: 6px;
+  padding: 6px 8px;
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 6px);
+  transform: translateY(-50%);
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.15);
+  transition: opacity 0.15s ease-in-out;
+  font-size: 0.8rem;
+  white-space: normal;
+  z-index: 20;
+}
+
+.tooltip-inline .tooltip-inline-text::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  transform: translateY(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent #bcd transparent transparent;
+}
+
+.tooltip-inline:hover .tooltip-inline-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-error {
+  color: #ef4444;
+  font-size: 0.9rem;
+  margin-top: 2px;
 }
