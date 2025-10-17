@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"regexp"
 	"strings"
@@ -42,7 +41,7 @@ func Signup(app *App) http.HandlerFunc {
 
 		var body in
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			WriteError(w, http.StatusBadRequest, err)
+			WriteError(w, http.StatusBadRequest, &Options{Error: err.Error()})
 			return
 		}
 
@@ -65,7 +64,7 @@ func Signup(app *App) http.HandlerFunc {
 		} else {
 			// Check if email already exists in the DB
 			if existing, err := app.Store.GetUserByEmail(r.Context(), email); err == nil && existing != nil {
-				WriteError(w, http.StatusConflict, errors.New("email already registered"))
+				WriteError(w, http.StatusConflict, &Options{Error: ErrDuplicateEmail.Error()})
 				return
 			}
 		}
@@ -77,7 +76,7 @@ func Signup(app *App) http.HandlerFunc {
 			if len(password) < 12 {
 				fieldErrs["password"] = "too short (min 12 chars)"
 			} else if len(password) > 128 {
-				fieldErrs["password"] = "too long"
+				fieldErrs["password"] = "too long (max 128 chars)"
 			} else {
 				switch {
 				case !reLower.MatchString(password):
@@ -116,14 +115,18 @@ func Signup(app *App) http.HandlerFunc {
 
 		// If any validation errors exist, return 422
 		if len(fieldErrs) > 0 {
-			WriteValidationError(w, reqID, fieldErrs)
+			WriteError(w, http.StatusUnprocessableEntity, &Options{
+				Error:       ErrValidationFailed.Error(),
+				RequestID:   reqID,
+				FieldErrors: fieldErrs,
+			})
 			return
 		}
 
 		// Passed validation, generate hash
 		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err)
+			WriteError(w, http.StatusInternalServerError, &Options{Error: err.Error()})
 			return
 		}
 
@@ -137,13 +140,15 @@ func Signup(app *App) http.HandlerFunc {
 
 		out, err := app.Store.CreateUser(r.Context(), u)
 		if err != nil {
-			WriteError(w, http.StatusConflict, err)
+			WriteError(w, http.StatusConflict, &Options{Error: err.Error()})
 			return
 		}
 
-		WriteJSON(w, http.StatusCreated, map[string]any{
-			"id":    out.ID,
-			"email": out.Email,
+		WriteJSON(w, http.StatusCreated, &Options{
+			Data: map[string]any{
+				"id":    out.ID,
+				"email": out.Email,
+			},
 		})
 	}
 }
@@ -158,7 +163,7 @@ func Login(app *App) http.HandlerFunc {
 		}
 		var body in
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			WriteError(w, http.StatusBadRequest, err)
+			WriteError(w, http.StatusBadRequest, &Options{Error: err.Error()})
 			return
 		}
 
@@ -185,26 +190,35 @@ func Login(app *App) http.HandlerFunc {
 
 		// If any validation errors exist, return 422
 		if len(fieldErrs) > 0 {
-			WriteValidationError(w, reqID, fieldErrs)
+			WriteError(w, http.StatusUnprocessableEntity, &Options{
+				Error:       ErrValidationFailed.Error(),
+				RequestID:   reqID,
+				FieldErrors: fieldErrs,
+			})
 			return
 		}
 
 		// Passed validation, query user
 		u, err := app.Store.GetUserByEmail(r.Context(), email)
 		if err != nil {
-			WriteError(w, http.StatusUnauthorized, errors.New("invalid credentials"))
+			WriteError(w, http.StatusUnauthorized, &Options{Error: ErrInvalidCredentials.Error()})
 			return
 		}
 		if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(body.Password)) != nil {
-			WriteError(w, http.StatusUnauthorized, errors.New("invalid credentials"))
+			WriteError(w, http.StatusUnauthorized, &Options{Error: ErrInvalidCredentials.Error()})
 			return
 		}
 
 		if err := app.issueSession(w, u.ID); err != nil {
-			WriteError(w, http.StatusInternalServerError, err)
+			WriteError(w, http.StatusInternalServerError, &Options{Error: err.Error()})
 			return
 		}
-		WriteJSON(w, http.StatusOK, map[string]any{"id": u.ID, "email": u.Email})
+		WriteJSON(w, http.StatusOK, &Options{
+			Data: map[string]any{
+				"id":    u.ID,
+				"email": u.Email,
+			},
+		})
 	}
 }
 
@@ -212,7 +226,11 @@ func Login(app *App) http.HandlerFunc {
 func Logout(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		app.clearSession(w)
-		WriteJSON(w, http.StatusOK, map[string]any{"message": "logged out"})
+		WriteJSON(w, http.StatusOK, &Options{
+			Data: map[string]any{
+				"message": "logged out",
+			},
+		})
 	}
 }
 
@@ -221,19 +239,21 @@ func Me(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		uid := CurrentUserID(r)
 		if uid == uuid.Nil {
-			WriteError(w, http.StatusUnauthorized, errors.New("unauthorized"))
+			WriteError(w, http.StatusUnauthorized, &Options{Error: ErrUnauthorized.Error()})
 			return
 		}
 		u, err := app.Store.GetUserByID(r.Context(), uid)
 		if err != nil {
-			WriteError(w, http.StatusUnauthorized, errors.New("unauthorized"))
+			WriteError(w, http.StatusUnauthorized, &Options{Error: ErrUnauthorized.Error()})
 			return
 		}
-		WriteJSON(w, http.StatusOK, map[string]any{
-			"id":        u.ID,
-			"email":     u.Email,
-			"name":      u.Name,
-			"last_name": u.LastName,
+		WriteJSON(w, http.StatusOK, &Options{
+			Data: map[string]any{
+				"id":        u.ID,
+				"email":     u.Email,
+				"name":      u.Name,
+				"last_name": u.LastName,
+			},
 		})
 	}
 }
