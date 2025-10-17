@@ -156,7 +156,7 @@ class CalcOut(BaseModel):
     metrics: Metric
 
 def validate_user_fills(timestamp: datetime, price: str, quantity: str, side: str, symbol: str):
-    # This is failing in purpose, make implementation
+    # This is failing in purpose, make implementation for validation
     return {
                 "ok": True,
                 "request_id": "",
