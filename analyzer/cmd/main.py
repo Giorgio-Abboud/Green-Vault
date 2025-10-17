@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional, Literal, Annotated
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, BeforeValidator
-from src.service import make_calculation
+from analyzer.src.service import make_calculation
 
 logging.basicConfig(level=logging.INFO)
 app = FastAPI()
@@ -139,6 +139,7 @@ class Fill(BaseModel):
 MetricValue = Annotated[float | None, Field(default=None)]
 
 class Metric(BaseModel):
+    # DELETE COMMENTS
     # trade_vwap: MetricValue
     # market_vwap: MetricValue
     vwap_slippage: MetricValue
@@ -153,6 +154,18 @@ class CalcOut(BaseModel):
     request_id: str = Field(..., description="Trace ID for the calculation")
     fills: Fill
     metrics: Metric
+
+def validate_user_fills(timestamp: datetime, price: str, quantity: str, side: str, symbol: str):
+    # This is failing in purpose, make implementation
+    return {
+                "ok": True,
+                "request_id": "",
+                "fills": None,
+                "error": "Validation failed",
+                "field_errors": {
+                    "timestamp": "Inputted timestamp cannot be before 9:30 AM or after 4:00 PM"
+                }
+            }
 
 # -------------------- Endpoint --------------------
 @app.post("/calculate", response_model=CalcOut)
