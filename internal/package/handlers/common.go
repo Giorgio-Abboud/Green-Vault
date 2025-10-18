@@ -6,41 +6,56 @@ import (
 	"net/http"
 )
 
-var ErrUnauthorized = errors.New("unauthorized")
+var (
+	ErrDuplicateEmail     = errors.New("email already registered")
+	ErrUnauthorized       = errors.New("unauthorized")
+	ErrValidationFailed   = errors.New("validation failed")
+	ErrInvalidCredentials = errors.New("invalid credentials")
+)
 
 // JSONResponse defines the unified structure for all API responses.
 type JSONResponse struct {
-	Ok    bool        `json:"ok"`
-	Data  interface{} `json:"data,omitempty"`
-	Error string      `json:"error,omitempty"`
+	Ok          bool        `json:"ok"`
+	Data        interface{} `json:"data,omitempty"`
+	Error       string      `json:"error,omitempty"`
+	RequestID   string      `json:"req_id,omitempty"`
+	FieldErrors interface{} `json:"field_errors,omitempty"`
 }
 
-// WriteJSON sends a JSON response with a status code and payload.
-func WriteJSON(w http.ResponseWriter, status int, data any) {
+// Options is used to build JSONResponse easily (internal use only).
+type Options struct {
+	Data        interface{}
+	Error       string
+	RequestID   string
+	FieldErrors interface{}
+}
+
+// WriteJSON sends a standardized success JSON response.
+func WriteJSON(w http.ResponseWriter, status int, opts *Options) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	resp := JSONResponse{Ok: true, Data: data}
+
+	resp := JSONResponse{
+		Ok:          true,
+		Data:        opts.Data,
+		RequestID:   opts.RequestID,
+		FieldErrors: opts.FieldErrors,
+	}
+
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // WriteError sends a standardized JSON error response.
-func WriteError(w http.ResponseWriter, status int, err error) {
+func WriteError(w http.ResponseWriter, status int, opts *Options) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	resp := JSONResponse{Ok: false, Error: err.Error()}
-	_ = json.NewEncoder(w).Encode(resp)
-}
 
-// WriteValidationError sends a structured 422 response with per-field errors.
-func WriteValidationError(w http.ResponseWriter, reqID string, fieldErrs map[string]string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusUnprocessableEntity)
-
-	resp := map[string]any{
-		"ok":           false,
-		"req_id":       reqID,
-		"error":        "validation failed",
-		"field_errors": fieldErrs,
+	resp := JSONResponse{
+		Ok:          false,
+		Error:       opts.Error,
+		RequestID:   opts.RequestID,
+		FieldErrors: opts.FieldErrors,
 	}
+
 	_ = json.NewEncoder(w).Encode(resp)
 }
