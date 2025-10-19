@@ -244,7 +244,7 @@ func Me(app *App) http.HandlerFunc {
 		}
 		u, err := app.Store.GetUserByID(r.Context(), uid)
 		if err != nil {
-			WriteError(w, http.StatusUnauthorized, &Options{Error: ErrUnauthorized.Error()})
+			WriteError(w, http.StatusInternalServerError, &Options{Error: ErrLookup.Error()})
 			return
 		}
 		WriteJSON(w, http.StatusOK, &Options{
