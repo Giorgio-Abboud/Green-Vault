@@ -12,6 +12,7 @@ var (
 	ErrValidationFailed   = errors.New("validation failed")
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrLookup             = errors.New("user lookup failed")
+	ErrConfirmPassword    = errors.New("passwords do not match")
 )
 
 // JSONResponse defines the unified structure for all API responses.
