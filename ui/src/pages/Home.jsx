@@ -1,15 +1,16 @@
 import React from "react";
 import { useAuth } from "../auth";
 import { apiPost } from "../api";
+import { Link } from "react-router-dom";
 
-export default function Home(){
+export default function Home() {
   const { user, refresh } = useAuth();
 
-  async function logout(){
-    try{
+  async function logout() {
+    try {
       await apiPost("/v1/logout", {});
       await refresh();
-    }catch(err){
+    } catch (err) {
       console.error(err);
     }
   }
@@ -20,7 +21,12 @@ export default function Home(){
       {user ? (
         <>
           <div>Signed in as <strong>{user.name || user.email}</strong></div>
-          <button onClick={logout} style={{ marginTop: 8 }}>Logout</button>
+          <div style={{ marginTop: 12, display: "flex", gap: "8px" }}>
+            <Link to="/edit-profile">
+              <button>Edit Profile</button>
+            </Link>
+            <button onClick={logout}>Logout</button>
+          </div>
         </>
       ) : (
         <div>Not signed in</div>

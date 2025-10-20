@@ -136,3 +136,57 @@ input.valid {
   font-size: 0.9rem;
   margin-top: 2px;
 }
+
+.banner.success,
+.banner.error {
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.banner {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+input {
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+input.error {
+  border: 2px solid #ef4444;
+  background-color: #fff5f5;
+}
+
+.field-error {
+  color: #ef4444;
+  font-size: 0.85rem;
+  font-style: italic;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.form-group .field-error:not(:empty) {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+input.valid {
+  border: 2px solid #22c55e;
+  background-color: #f0fff4;
+}
+
+button.secondary {
+  background-color: #94a3b8;
+  color: white;
+}
+
+button.secondary:hover {
+  background-color: #64748b;
+}

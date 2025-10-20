@@ -1,4 +1,4 @@
-const API  = import.meta.env.VITE_API_BASE_URL  || "http://localhost:8080";
+const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 const CALC = import.meta.env.VITE_CALC_BASE_URL || "http://localhost:8000";
 
 // Small helper to throw nice errors and unwrap { ok, data }
@@ -24,13 +24,22 @@ export async function apiGet(path) {
   return handleJson(res);
 }
 
+export async function apiPut(path, body) {
+  const res = await fetch(`${API}${path}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  return handleJson(res);
+}
+
 export async function calcPost(body) {
   const res = await fetch(`${CALC}/calculate`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  // FastAPI returns the payload directly (not wrapped), so we still go through the helper.
   return handleJson(res);
 }
 
@@ -42,6 +51,8 @@ export async function apiPostRaw(path, body) {
     body: JSON.stringify(body),
   });
   let json = {};
-  try { json = await res.json(); } catch {}
+  try {
+    json = await res.json();
+  } catch {}
   return { status: res.status, ok: res.ok, json };
 }
