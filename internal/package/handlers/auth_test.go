@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Giorgio-Abboud/Green-Vault/internal/package/models"
 )
@@ -258,5 +259,108 @@ func TestMe(t *testing.T) {
 	}
 	if !strings.Contains(res.Error, "unauthorized") {
 		t.Fatalf("expected 'unauthorized' error, got: %s", res.Error)
+	}
+}
+
+func TestEditProfile(t *testing.T) {
+	app := newTestApp(t)
+
+	// seed an existing user with hashed password
+	hashed, _ := bcrypt.GenerateFromPassword([]byte("12340987User!"), bcrypt.DefaultCost)
+	u, err := app.Store.CreateUser(context.Background(), &models.User{
+		ID:           uuid.New(),
+		Email:        "existent@example.com",
+		Name:         "Seed",
+		LastName:     "User",
+		PasswordHash: string(hashed),
+	})
+	if err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name       string
+		bodyJSON   map[string]any
+		wantStatus int
+		wantOK     bool
+	}{
+		{
+			name: "empty old password",
+			bodyJSON: map[string]any{
+				"old_password":     "",
+				"new_password":     "StrongPassword!25",
+				"confirm_password": "StrongPassword!25",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+			wantOK:     false,
+		},
+		{
+			name: "empty new password",
+			bodyJSON: map[string]any{
+				"old_password":     "12340987User!",
+				"new_password":     "",
+				"confirm_password": "StrongPassword!25",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+			wantOK:     false,
+		},
+		{
+			name: "empty confirm password",
+			bodyJSON: map[string]any{
+				"old_password":     "12340987User!",
+				"new_password":     "StrongPassword!25",
+				"confirm_password": "",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+			wantOK:     false,
+		},
+		{
+			name: "no met requirements",
+			bodyJSON: map[string]any{
+				"old_password":     "12340987User!",
+				"new_password":     "StrongPassword",
+				"confirm_password": "StrongPassword",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+			wantOK:     false,
+		},
+		{
+			name: "valid update",
+			bodyJSON: map[string]any{
+				"old_password":     "12340987User!",
+				"new_password":     "StrongPassword!25",
+				"confirm_password": "StrongPassword!25",
+			},
+			wantStatus: http.StatusOK,
+			wantOK:     true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest("PUT", "/v1/users/me", mustJSONBody(t, tc.bodyJSON))
+			req = withUser(req, u.ID)
+			req.Header.Set("Content-Type", "application/json")
+
+			rr := httptest.NewRecorder()
+			EditProfile(app).ServeHTTP(rr, req)
+
+			if rr.Code != tc.wantStatus {
+				t.Fatalf("status = %d; want %d. body=%s", rr.Code, tc.wantStatus, rr.Body.String())
+			}
+			res := decodeStdResp(t, rr)
+			if res.Ok != tc.wantOK {
+				t.Fatalf("ok = %v; want %v. body=%s", res.Ok, tc.wantOK, rr.Body.String())
+			}
+
+			// check updated password for valid case
+			if tc.name == "valid update" {
+				updated, err := app.Store.GetUserByID(context.Background(), u.ID)
+				if err != nil {
+					t.Fatalf("failed to fetch updated user: %v", err)
+				}
+				if bcrypt.CompareHashAndPassword([]byte(updated.PasswordHash), []byte("StrongPassword!25")) != nil {
+					t.Fatalf("password hash was not updated")
+				}
+			}
+		})
 	}
 }

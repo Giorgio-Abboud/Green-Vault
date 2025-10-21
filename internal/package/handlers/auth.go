@@ -257,3 +257,118 @@ func Me(app *App) http.HandlerFunc {
 		})
 	}
 }
+
+// PUT /v1/users/me   (protected)
+func EditProfile(app *App) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		reqID := uuid.NewString()
+
+		type in struct {
+			OldPassword string `json:"old_password"`
+			NewPassword string `json:"new_password"`
+			ConfirmPassword string `json:"confirm_password"`
+		}
+
+		var body in
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			WriteError(w, http.StatusBadRequest, &Options{Error: err.Error()})
+			return
+		}
+
+		// Edit Profile validation section
+		fieldErrs := make(map[string]string)
+
+		// Normalize inputs
+		oldPassword := body.OldPassword
+		newPassword := body.NewPassword
+		confirmPassword := body.ConfirmPassword
+
+		// Old password validation
+		if oldPassword == "" {
+			fieldErrs["old_password"] = "required"
+		}
+		
+		// New password validation
+		if newPassword == "" {
+			fieldErrs["new_password"] = "required"
+		} else {
+			if len(newPassword) < 12 {
+				fieldErrs["new_password"] = "too short (min 12 chars)"
+			} else if len(newPassword) > 128 {
+				fieldErrs["new_password"] = "too long (max 128 chars)"
+			} else {
+				switch {
+				case !reLower.MatchString(newPassword):
+					fieldErrs["new_password"] = "must contain a lowercase letter"
+				case !reUpper.MatchString(newPassword):
+					fieldErrs["new_password"] = "must contain an uppercase letter"
+				case !reDigit.MatchString(newPassword):
+					fieldErrs["new_password"] = "must contain a digit"
+				case !reSymbol.MatchString(newPassword):
+					fieldErrs["new_password"] = "must contain a symbol"
+				}
+			}
+		}
+
+		// Confirm password validation
+		if confirmPassword == "" {
+			fieldErrs["confirm_password"] = "required"
+		} else if confirmPassword != newPassword {
+			fieldErrs["confirm_password"] = "does not match"	
+		}
+		
+
+		// If any validation errors exist, return 422
+		if len(fieldErrs) > 0 {
+			WriteError(w, http.StatusUnprocessableEntity, &Options{
+				Error:       ErrValidationFailed.Error(),
+				RequestID:   reqID,
+				FieldErrors: fieldErrs,
+			})
+			return
+		}
+
+		// Passed validation, get user of the current session
+		uid := CurrentUserID(r)
+		if uid == uuid.Nil {
+			WriteError(w, http.StatusUnauthorized, &Options{Error: ErrUnauthorized.Error()})
+			return
+		}
+		u, err := app.Store.GetUserByID(r.Context(), uid)
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, &Options{Error: ErrLookup.Error()})
+			return
+		}
+
+		// Compare old password matches user's password
+		if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(oldPassword)) != nil {
+			WriteError(w, http.StatusUnauthorized, &Options{Error: ErrInvalidCredentials.Error()})
+			return
+		}
+
+		// Generate hash for updated password
+		newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, &Options{Error: err.Error()})
+			return
+		}
+
+		u.PasswordHash = string(newHash)
+
+		// Update the user with the new password
+		out, err := app.Store.UpdateUser(r.Context(), u)
+		if err != nil {
+			WriteError(w, http.StatusConflict, &Options{Error: err.Error()})
+			return
+		}
+
+		WriteJSON(w, http.StatusOK, &Options{
+			Data: map[string]any{
+				"id":    out.ID,
+				"email": out.Email,
+				"name":  out.Name,
+				"last_name": out.LastName,
+			},
+		})
+	}
+}
