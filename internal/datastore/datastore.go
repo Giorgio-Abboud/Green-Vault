@@ -56,6 +56,16 @@ func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, er
 	return &u, nil
 }
 
+func (s *Store) UpdateUser(ctx context.Context, u *models.User) (*models.User, error) {
+	if u == nil || u.ID == uuid.Nil || u.Email == "" || u.PasswordHash == "" || u.Name == "" || u.LastName == "" {
+		return nil, ErrMissingUserFields
+	}
+	if err := s.DB.WithContext(ctx).Save(u).Error; err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
 // ---------- User Fills ----------
 
 func (s *Store) CreateUserFill(ctx context.Context, uf *models.UserFill) (*models.UserFill, error) {

@@ -8,6 +8,7 @@ import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Calculate from "./pages/Calculate";
 import Home from "./pages/Home";
+import EditProfile from "./pages/EditProfile";
 
 // Simple route guard
 function RequireAuth({ children }) {
@@ -20,13 +21,13 @@ function RequireAuth({ children }) {
   return children;
 }
 
-function AppShell(){
+function AppShell() {
   const { user } = useAuth();
 
   return (
     <div>
       <h1>Green Vault UI</h1>
-      <nav style={{ display:"flex", gap:12, marginBottom:16 }}>
+      <nav style={{ display: "flex", gap: 12, marginBottom: 16 }}>
         <Link to="/">Home</Link>
         {!user && <Link to="/signup">Sign up</Link>}
         {!user && <Link to="/login">Log in</Link>}
@@ -36,12 +37,20 @@ function AppShell(){
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/" replace />} />
-        <Route path="/login"  element={!user ? <Login />  : <Navigate to="/" replace />} />
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
         <Route
           path="/calculate"
           element={
             <RequireAuth>
               <Calculate />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/edit-profile"
+          element={
+            <RequireAuth>
+              <EditProfile />
             </RequireAuth>
           }
         />

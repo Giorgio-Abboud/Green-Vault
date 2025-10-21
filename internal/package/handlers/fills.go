@@ -38,13 +38,13 @@ func SaveFill(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := CurrentUserID(r)
 		if userID == uuid.Nil {
-			WriteError(w, http.StatusUnauthorized, ErrUnauthorized)
+			WriteError(w, http.StatusUnauthorized, &Options{Error: ErrUnauthorized.Error()})
 			return
 		}
 
 		var in SaveFillIn
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-			WriteError(w, http.StatusBadRequest, err)
+			WriteError(w, http.StatusBadRequest, &Options{Error: err.Error()})
 			return
 		}
 
@@ -97,7 +97,11 @@ func SaveFill(app *App) http.HandlerFunc {
 
 		// If any validation failed
 		if len(fieldErrs) > 0 {
-			WriteValidationError(w, reqID, fieldErrs)
+			WriteError(w, http.StatusUnprocessableEntity, &Options{
+				Error:       ErrValidationFailed.Error(),
+				RequestID:   reqID,
+				FieldErrors: fieldErrs,
+			})
 			return
 		}
 
@@ -118,7 +122,7 @@ func SaveFill(app *App) http.HandlerFunc {
 		}
 
 		if _, err := app.Store.CreateUserFill(r.Context(), uf); err != nil {
-			WriteError(w, http.StatusInternalServerError, err)
+			WriteError(w, http.StatusInternalServerError, &Options{Error: err.Error()})
 			return
 		}
 
@@ -133,15 +137,17 @@ func SaveFill(app *App) http.HandlerFunc {
 			Drift:           in.Metrics.Drift,
 		}
 		if _, err := app.Store.CreateMetric(r.Context(), m); err != nil {
-			WriteError(w, http.StatusInternalServerError, err)
+			WriteError(w, http.StatusInternalServerError, &Options{Error: err.Error()})
 			return
 		}
 
-		WriteJSON(w, http.StatusCreated, map[string]any{
-			"ok":        true,
-			"req_id":    reqID,
-			"fill_id":   fillID,
-			"metric_id": metricID,
+		WriteJSON(w, http.StatusCreated, &Options{
+			Data: map[string]any{
+				"ok":        true,
+				"req_id":    reqID,
+				"fill_id":   fillID,
+				"metric_id": metricID,
+			},
 		})
 	}
 }
