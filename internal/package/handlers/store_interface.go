@@ -16,4 +16,5 @@ type Store interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 	CreateUserFill(ctx context.Context, uf *models.UserFill) (*models.UserFill, error)
 	CreateMetric(ctx context.Context, m *models.Metric) (*models.Metric, error)
+	UpdateUser(ctx context.Context, u *models.User) (*models.User, error)
 }
