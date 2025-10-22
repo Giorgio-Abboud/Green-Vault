@@ -4,7 +4,7 @@ from typing import Literal, Annotated
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, BeforeValidator
-from analyzer.src.service import make_calculation
+from src.service import make_calculation
 
 logging.basicConfig(level=logging.INFO)
 app = FastAPI()
