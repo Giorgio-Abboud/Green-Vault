@@ -1,123 +1,108 @@
 import React, { useState } from "react";
-import { apiPostRaw } from "../api";
-
-function InfoTooltip({ text }) {
-  return (
-    <span className="tooltip-inline">
-      ℹ️
-      <span className="tooltip-inline-text">{text}</span>
-    </span>
-  );
-}
+import { apiPost } from "../api";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
-  const [fieldErrors, setFieldErrors] = useState({});
   const [msg, setMsg] = useState("");
+
+  const inputCls =
+    "w-full rounded-lg bg-brand-card/60 border border-brand-border px-3 py-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent/70 focus:border-brand-accent/60 transition";
+  const labelCls = "text-sm text-gray-300";
+  const btn =
+    "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium bg-brand-accent text-black hover:brightness-110 transition shadow-soft";
 
   async function submit(e) {
     e.preventDefault();
     setMsg("");
-    setFieldErrors({});
-
-    const res = await apiPostRaw("/v1/users", {
-      email,
-      name,
-      last_name: lastName,
-      password,
-    });
-
-    if (res.status === 201) {
+    try {
+      await apiPost("/v1/users", { email, name, last_name: lastName, password });
       setMsg("✅ Your profile was successfully created!");
-      return;
+    } catch (err) {
+      setMsg(`❌ ${err.message}`);
     }
-
-    if (res.status === 422) {
-      setFieldErrors(res.json.field_errors || {});
-      return;
-    }
-
-    if (res.status === 409) {
-      setFieldErrors({ email: "email already registered" });
-      return;
-    }
-
-    setMsg(`❌ ${res.json?.error || "Unexpected error"}`);
   }
 
-  const inputClass = (name) =>
-    `w-full p-2 border rounded ${fieldErrors[name] ? "error" : ""}`;
+  const isOk = msg.startsWith("✅");
+  const isErr = msg.startsWith("❌");
 
   return (
-    <div>
-      <h2>Sign up</h2>
-      <form onSubmit={submit} className="form space-y-4">
-        {/* Email */}
-        <div className="form-group">
-          <label>
-            Email <InfoTooltip text="Must follow the format username@domain.tld (e.g. pepito1@gmail.com)." />
-          </label>
-          <input
-            placeholder="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={inputClass("email")}
-            required
-          />
+    <div className="min-h-screen bg-brand-bg text-gray-100">
+      <div className="mx-auto max-w-md px-4 py-10">
+        <div className="rounded-xl2 border border-brand-border bg-brand-card p-6 shadow-soft">
+          <h2 className="text-xl font-semibold tracking-tight mb-4">Sign up</h2>
+
+          <form onSubmit={submit} className="space-y-4">
+            <div>
+              <label className={labelCls}>Email</label>
+              <input
+                className={inputCls}
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                type="email"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className={labelCls}>First name</label>
+                <input
+                  className={inputCls}
+                  placeholder="First name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Last name</label>
+                <input
+                  className={inputCls}
+                  placeholder="Last name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className={labelCls}>Password</label>
+              <input
+                className={inputCls}
+                placeholder="••••••••"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            <button type="submit" className={btn}>
+              Create account
+            </button>
+          </form>
+
+          {msg && (
+            <div
+              className={[
+                "mt-4 rounded-lg border px-4 py-3 text-sm",
+                isOk
+                  ? "border-emerald-600/40 bg-emerald-500/10 text-emerald-300"
+                  : isErr
+                  ? "border-red-600/40 bg-red-500/10 text-red-300"
+                  : "border-brand-border bg-brand-card/80 text-gray-300",
+              ].join(" ")}
+            >
+              {msg}
+            </div>
+          )}
         </div>
-
-        {/* First name */}
-        <div className="form-group">
-          <label>
-            Name <InfoTooltip text="Only letters A–Z with valid characters (' -). (e.g. Roary)." />
-          </label>
-          <input
-            placeholder="first name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={inputClass("name")}
-            required
-          />
-        </div>
-
-        {/* Last name */}
-        <div className="form-group">
-          <label>
-            Last name{" "}
-            <InfoTooltip text="Only letters A–Z with valid characters (' -). (Gonzales, O'Neal)." />
-          </label>
-          <input
-            placeholder="last name"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            className={inputClass("last_name")}
-            required
-          />
-        </div>
-
-        {/* Password */}
-        <div className="form-group">
-          <label>
-            Password{" "}
-            <InfoTooltip text="Must be 12–128 characters long and include at least one lowercase, one uppercase, one digit, and one symbol. (e.g. StrongPass#25)." />
-          </label>
-          <input
-            placeholder="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={inputClass("password")}
-            required
-          />
-        </div>
-
-        <button type="submit">Create account</button>
-      </form>
-
-      {msg && <div className="banner">{msg}</div>}
+      </div>
     </div>
   );
 }
