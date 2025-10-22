@@ -29,7 +29,15 @@ export default function Calculate() {
     e.preventDefault();
     setMsg("");
     try {
-      const r = await calcPost({ timestamp, price, quantity, side, symbol, request: mode });
+      const payload = {
+        timestamp,
+        price: Number.parseFloat(price),
+        quantity: Number.parseInt(quantity, 10),
+        side,
+        symbol,
+        request: mode,
+      };
+      const r = await calcPost(payload);
       // FastAPI returns { ok, request_id, fills, metrics }
       setMetrics(r?.metrics || null);
       setMsg("✅ calculated");
@@ -45,9 +53,12 @@ export default function Calculate() {
     }
     try {
       const payload = {
-        fill: { timestamp, price, quantity, side, symbol, mode, result: "SUCCESS" },
-        metrics,
-        client_request_id: metrics.request_id || "",
+        timestamp,
+        price: Number.parseFloat(price),
+        quantity: Number.parseInt(quantity, 10),
+        side,
+        symbol,
+        request: mode,
       };
       await apiPost("/v1/fills", payload); // returns { fill_id, metric_id } as data
       setMsg("✅ Your fills and metrics were saved!");

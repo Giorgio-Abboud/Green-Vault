@@ -1,4 +1,4 @@
-import os
+import os, json
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional
@@ -93,3 +93,18 @@ def get_time_series(
     df = df.loc[:, ordered_cols]
     print(df)
     return df.sort_values("start").reset_index(drop=True)
+
+
+# Check if a stock symbol exists
+def check_symbol(symbol: str):
+    try:
+        resp = client().get_stocks_list(symbol=symbol).as_json()
+        payload = json.loads(resp)
+    except Exception:
+        return False
+
+    if payload.get("status") != "ok":
+        return False
+
+    items = payload.get("data", [])
+    return any(item.get("symbol") == symbol for item in items)

@@ -2,6 +2,7 @@ import logging
 import uuid
 from typing import Dict, Tuple
 from zoneinfo import ZoneInfo
+from datetime import datetime
 
 import pandas as pd
 
@@ -30,7 +31,7 @@ def _create_fills_df(timestamp, price: float, quantity: int, side: str) -> tuple
 NY = ZoneInfo("America/New_York")
 
 # ---- metric calculators (stubs) ----
-def analyze(timestamp: str, price: str, quantity: str, side: str, symbol: str) -> Dict:
+def analyze(timestamp: datetime, price: str, quantity: str, side: str, symbol: str) -> Dict:
     logging.info("Starting ANALYSIS...")
 
     price_float = float(price)
@@ -153,7 +154,7 @@ def estimate(timestamp: str, price: str, quantity: str, side: str, symbol: str) 
 
 def make_calculation(
     *,
-    timestamp: str,
+    timestamp: datetime,
     price: float,
     quantity: int,
     side: str,
