@@ -46,7 +46,7 @@ class Fill(BaseModel):
     mode: RequestMode
 
 
-MetricValue = Annotated[float | None, Field(default=None)]
+MetricValue = Annotated[float | str | None, Field(default=None)]
 
 class Metric(BaseModel):
     vwap_slippage: MetricValue
