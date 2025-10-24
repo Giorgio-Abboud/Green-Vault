@@ -12,6 +12,33 @@ export default function EditProfile() {
   const [msg, setMsg] = useState("");
   const navigate = useNavigate();
 
+  function parseApiError(err) {
+    let status = err?.status ?? err?.response?.status ?? null;
+    let data = err?.data ?? err?.response?.data ?? undefined;
+    const coerce = (x) => {
+      if (!x) return undefined;
+      if (typeof x !== "string") return x;
+      try {
+        return JSON.parse(x);
+      } catch {
+        return { error: x };
+      }
+    };
+    if (data === undefined && (typeof err === "string" || typeof err?.message === "string")) {
+      const raw = String(typeof err === "string" ? err : err.message).trim();
+      const m = raw.match(/^(\d{3})\s+(.+)$/);
+      if (m) {
+        status = Number(m[1]);
+        data = coerce(m[2]);
+      } else {
+        data = coerce(raw);
+      }
+    } else {
+      data = coerce(data);
+    }
+    return { status, data };
+  }
+
   async function submit(e) {
     e.preventDefault();
     setMsg("");
@@ -28,16 +55,25 @@ export default function EditProfile() {
       setConfirmPassword("");
       setTimeout(() => navigate("/"), 2000);
     } catch (err) {
-      let message = err.message;
-      try {
-        const json = JSON.parse(message.split(" ", 2)[1]);
-        if (json?.field_errors) {
-          setFieldErrors(json.field_errors);
-          setMsg("");
-          return;
+      const { status, data } = parseApiError(err);
+      if (status === 422 && data && typeof data === "object") {
+        const fe = data.field_errors || {};
+        setFieldErrors(fe);
+        setMsg("❌ The information you entered doesn’t meet the requirements. Please fix the highlighted fields.");
+        const order = ["old_password", "new_password", "confirm_password"];
+        const first = order.find((k) => fe[k]);
+        if (first) {
+          requestAnimationFrame(() => {
+            document.querySelector(`[name="${first}"]`)?.focus();
+          });
         }
-      } catch {}
-      setMsg(`❌ ${message}`);
+        return;
+      }
+      if (status === 401 || status === 403) {
+        setMsg("❌ Your session expired. Please log in again.");
+        return;
+      }
+      setMsg(`❌ ${data?.error || err?.message || "Something went wrong"}`);
     }
   }
 
@@ -77,9 +113,14 @@ export default function EditProfile() {
           <form onSubmit={submit} className="space-y-4 max-w-md">
             <div>
               <label className={labelCls}>Current password</label>
-              <input type="password" placeholder="Current password" value={oldPassword}
+              <input
+                name="old_password"
+                type="password"
+                placeholder="Current password"
+                value={oldPassword}
                 onChange={(e) => setOldPassword(e.target.value)}
-                className={inputClass("old_password")} />
+                className={inputClass("old_password")}
+              />
               {fieldErrors.old_password && (
                 <div className="mt-1 text-xs text-red-400">Old password field does not match current password</div>
               )}
@@ -87,9 +128,14 @@ export default function EditProfile() {
 
             <div>
               <label className={labelCls}>New password</label>
-              <input type="password" placeholder="New password" value={newPassword}
+              <input
+                name="new_password"
+                type="password"
+                placeholder="New password"
+                value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className={inputClass("new_password")} />
+                className={inputClass("new_password")}
+              />
               {fieldErrors.new_password && (
                 <div className="mt-1 text-xs text-red-400">Must meet requirements (uppercase, lowercase, digit, symbol, ≥12 chars)</div>
               )}
@@ -97,10 +143,14 @@ export default function EditProfile() {
 
             <div>
               <label className={labelCls}>Confirm new password</label>
-              <input type="password" placeholder="Confirm new password"
+              <input
+                name="confirm_password"
+                type="password"
+                placeholder="Confirm new password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className={inputClass("confirm_password")} />
+                className={inputClass("confirm_password")}
+              />
               {fieldErrors.confirm_password && (
                 <div className="mt-1 text-xs text-red-400">The new password must match the confirmation</div>
               )}
@@ -131,3 +181,4 @@ export default function EditProfile() {
     </div>
   );
 }
+

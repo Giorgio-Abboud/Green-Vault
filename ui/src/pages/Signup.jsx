@@ -29,13 +29,12 @@ export default function Signup() {
       });
       setMsg("✅ Your profile was successfully created!");
     } catch (err) {
-      // ---- normalize error (works for object, axios-like, fetch-like, or plain string) ----
       let status = err?.status ?? err?.response?.status ?? null;
       let data = err?.data ?? err?.response?.data ?? undefined;
 
       if (!data && (typeof err === "string" || typeof err?.message === "string")) {
         const raw = String(typeof err === "string" ? err : err.message).trim();
-        const m = raw.match(/^(\d{3})\s+(.+)$/); // e.g. "422 {...}"
+        const m = raw.match(/^(\d{3})\s+(.+)$/);
         if (m) {
           status = Number(m[1]);
           const bodyStr = m[2];
@@ -48,7 +47,6 @@ export default function Signup() {
         try { data = JSON.parse(data); } catch { data = { error: data }; }
       }
 
-      // ---- handle by status ----
       if (status === 422 && data && typeof data === "object") {
         const fe = data.field_errors || {};
         setFieldErrors({
@@ -58,7 +56,6 @@ export default function Signup() {
           password: fe.password,
         });
         setMsg("❌ The information you entered doesn’t meet the requirements. Please fix the highlighted fields.");
-        // focus first field with error
         const order = ["email", "name", "last_name", "password"];
         const first = order.find((k) => fe[k]);
         if (first) {
@@ -178,3 +175,4 @@ export default function Signup() {
     </div>
   );
 }
+
