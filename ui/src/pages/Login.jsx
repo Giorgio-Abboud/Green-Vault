@@ -25,7 +25,6 @@ export default function Login() {
       await refresh();
       setMsg("✅ logged in");
     } catch (err) {
-      // --- Normalize any error shape (object, axios-like, fetch-like, or plain string) ---
       let status =
         err?.status ??
         err?.response?.status ??
@@ -36,11 +35,9 @@ export default function Login() {
         err?.response?.data ??
         undefined;
 
-      // If data is missing and the error is a string (e.g. "401 {...}")
       if (!data && (typeof err === "string" || typeof err?.message === "string")) {
         const raw = String(typeof err === "string" ? err : err.message).trim();
 
-        // Try to parse: "<code> <json>"  e.g.  401 {"ok":false,"error":"invalid credentials"}
         const m = raw.match(/^(\d{3})\s+(.+)$/);
         if (m) {
           status = Number(m[1]);
@@ -51,7 +48,6 @@ export default function Login() {
             data = { error: bodyStr };
           }
         } else {
-          // maybe just JSON in the message
           try {
             data = JSON.parse(raw);
           } catch {
@@ -59,8 +55,6 @@ export default function Login() {
           }
         }
       }
-
-      // If data is still a string, try to JSON-parse
       if (typeof data === "string") {
         try {
           data = JSON.parse(data);
@@ -68,9 +62,7 @@ export default function Login() {
           data = { error: data };
         }
       }
-
-      // --- Now handle cases by status ---
-      setFieldErrors({}); // reset
+      setFieldErrors({}); 
 
       if (status === 422 && data && typeof data === "object") {
         const fe = data.field_errors || {};
