@@ -6,6 +6,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const { refresh } = useAuth();
 
   const inputCls =
@@ -17,12 +18,78 @@ export default function Login() {
   async function submit(e) {
     e.preventDefault();
     setMsg("");
+    setFieldErrors({});
+
     try {
       await apiPost("/v1/login", { email, password });
       await refresh();
       setMsg("✅ logged in");
     } catch (err) {
-      setMsg(`❌ ${err.message}`);
+      let status =
+        err?.status ??
+        err?.response?.status ??
+        null;
+
+      let data =
+        err?.data ??
+        err?.response?.data ??
+        undefined;
+
+      if (!data && (typeof err === "string" || typeof err?.message === "string")) {
+        const raw = String(typeof err === "string" ? err : err.message).trim();
+
+        const m = raw.match(/^(\d{3})\s+(.+)$/);
+        if (m) {
+          status = Number(m[1]);
+          const bodyStr = m[2];
+          try {
+            data = JSON.parse(bodyStr);
+          } catch {
+            data = { error: bodyStr };
+          }
+        } else {
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = { error: raw };
+          }
+        }
+      }
+      if (typeof data === "string") {
+        try {
+          data = JSON.parse(data);
+        } catch {
+          data = { error: data };
+        }
+      }
+      setFieldErrors({}); 
+
+      if (status === 422 && data && typeof data === "object") {
+        const fe = data.field_errors || {};
+        setFieldErrors({
+          email: fe.email,
+          password: fe.password,
+        });
+        setMsg(`❌ ${data.error || "validation failed"}`);
+        return;
+      }
+
+      if (status === 401) {
+        const text =
+          (data?.error && typeof data.error === "string")
+            ? (data.error.toLowerCase().includes("credential") || data.error.toLowerCase().includes("invalid")
+                ? "Invalid email or password"
+                : data.error)
+            : "Unauthorized";
+        setMsg(`❌ ${text}`);
+        requestAnimationFrame(() => {
+          document.querySelector('input[name="password"]')?.focus();
+        });
+        return;
+      }
+
+      // Fallback
+      setMsg(`❌ ${data?.error || err?.message || "Something went wrong"}`);
     }
   }
 
@@ -47,7 +114,11 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
               required
               type="email"
+              name="email"
             />
+            {fieldErrors.email && (
+              <p className="mt-1 text-xs text-red-400">{fieldErrors.email}</p>
+            )}
           </div>
 
           <div>
@@ -59,7 +130,11 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              name="password"
             />
+            {fieldErrors.password && (
+              <p className="mt-1 text-xs text-red-400">{fieldErrors.password}</p>
+            )}
           </div>
 
           <button type="submit" className={btn}>
