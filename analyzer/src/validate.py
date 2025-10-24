@@ -1,8 +1,8 @@
 from datetime import datetime, time, date
 from decimal import Decimal, InvalidOperation
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 import holidays, uuid, re
-from analyzer.src.twelve_client import check_symbol
+from src.twelve_client import check_symbol
 
 def validate_user_fills(timestamp: datetime, price: float, quantity: int, side: str, symbol: str) -> dict:
     field_errors = {}
@@ -39,7 +39,7 @@ def validate_user_fills(timestamp: datetime, price: float, quantity: int, side: 
     elif quantity <= 0:
         field_errors["quantity"] = "Inputted quantity must be larger than 0."
 
-    if side.lower() != "buy" or side.lower() != "sell":
+    if side.lower() not in {"buy", "sell"}:
         field_errors["side"] = "Inputted side must be 'buy' or 'sell'."
 
     SYMBOL_RE = re.compile(r"^[A-Z0-9]+$")
@@ -51,13 +51,20 @@ def validate_user_fills(timestamp: datetime, price: float, quantity: int, side: 
     elif not check_symbol(symbol):
         field_errors["symbol"] = "Inputted symbol must exist."
 
-    # This is failing in purpose, make implementation for validation
-    payload = {
-        "ok": True,
-        "request_id": uuid.uuid4(),
-        "fills": None,
-        "error": "Validation failed",
-        "field_errors": field_errors
-        } if field_errors else {}
+
+    if field_errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "ok": False,
+                "request_id": str(uuid.uuid4()),
+                "fills": None,
+                "error": "Validation failed",
+                "field_errors": field_errors
+            }
+        )
     
-    return payload
+    return {
+        "ok": True,
+        "request_id": str(uuid.uuid4())
+        }
