@@ -556,18 +556,36 @@ def compute_all_metrics(
     impl_short = implementation_shortfall_bps(side, fills_df, bars_df, arrival_ts)
     timing = timing_drift_bps(side, bars_df, window)
 
-    # Timestamp of computation (useful for UIs, provisional flags, etc.)
-    now_ts = pd.Timestamp(now) if now is not None else pd.Timestamp.now(tz=bars_df["start"].dt.tz)
-
     metrics: Dict[str, Any] = {
-        # "trade_vwap": float(trade_v) if np.isfinite(trade_v) else float(np.nan),
-        # "market_vwap": float(market_v) if np.isfinite(market_v) else float(np.nan),
-        "vwap_slippage": float(vwap_slip) if np.isfinite(vwap_slip) else float(np.nan),
-        "shortfall": float(impl_short) if np.isfinite(impl_short) else float(np.nan),
-        "effective_spread": float(eff_spread) if np.isfinite(eff_spread) else float(np.nan),
-        "realized_spread": float(realized_spread) if np.isfinite(realized_spread) else float(np.nan),
-        "market_impact": float(impact) if np.isfinite(impact) else float(np.nan),
-        "drift": float(timing) if np.isfinite(timing) else float(np.nan)
+        "vwap_slippage": (
+            f"{float(vwap_slip):.2f} bps — "
+            "Your VWAP vs Market VWAP over the window (mid≈HLC3). Positive = worse fill."
+        ) if np.isfinite(vwap_slip) else "unavailable",
+
+        "shortfall": (
+            f"{float(impl_short):.2f} bps — "
+            "Implementation Shortfall vs arrival (mid≈HLC3 at order arrival). Positive = worse."
+        ) if np.isfinite(impl_short) else "unavailable",
+
+        "effective_spread": (
+            f"{float(eff_spread):.2f} bps — "
+            "2× distance from mid at execution; how far from mid you traded. Positive = worse."
+        ) if np.isfinite(eff_spread) else "unavailable",
+
+        "realized_spread": (
+            f"{float(realized_spread):.2f} bps — "
+            "Effective spread vs mid after +1m (configurable). Smaller than effective ⇒ reversion. Positive = worse."
+        ) if np.isfinite(realized_spread) else "unavailable",
+
+        "market_impact": (
+            f"{float(impact):.2f} bps — "
+            "Heuristic impact (effective - realized): non-reverting cost by +1m. Positive = worse."
+        ) if np.isfinite(impact) else "unavailable",
+
+        "drift": (
+            f"{float(timing):.2f} bps — "
+            "Side-signed market move over your window (end - start mid). Positive = against you."
+        ) if np.isfinite(timing) else "unavailable",
     }
 
     log.info(

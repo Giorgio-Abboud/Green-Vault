@@ -98,13 +98,11 @@ def get_time_series(
 # Check if a stock symbol exists
 def check_symbol(symbol: str):
     try:
-        resp = client().get_stocks_list(symbol=symbol).as_json()
-        payload = json.loads(resp)
+        payload = client().get_stocks_list(symbol=symbol, country="United States").as_json()
+        if isinstance(payload, dict):
+            payload = json.loads(payload)
+
     except Exception:
         return False
-
-    if payload.get("status") != "ok":
-        return False
-
-    items = payload.get("data", [])
-    return any(item.get("symbol") == symbol for item in items)
+    
+    return any(row["symbol"] == symbol for row in payload)

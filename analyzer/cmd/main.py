@@ -1,10 +1,12 @@
 import logging
 from datetime import datetime
 from typing import Literal, Annotated
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, BeforeValidator
 from src.service import make_calculation
+from src.validate import validate_user_fills
 
 logging.basicConfig(level=logging.INFO)
 app = FastAPI()
@@ -44,7 +46,7 @@ class Fill(BaseModel):
     mode: RequestMode
 
 
-MetricValue = Annotated[float | None, Field(default=None)]
+MetricValue = Annotated[float | str | None, Field(default=None)]
 
 class Metric(BaseModel):
     vwap_slippage: MetricValue
@@ -75,6 +77,17 @@ def calculate(body: CalcIn):
         else:
             logging.warning("Unknown request %r; defaulting to analyze", body.request)
             mode = "analyze"
+
+        try:
+            validate_user_fills(
+                timestamp=body.timestamp,
+                price=body.price,
+                quantity=body.quantity,
+                side=body.side,
+                symbol=body.symbol
+            )
+        except HTTPException as validate_fail:
+            return JSONResponse(content=validate_fail.detail, status_code=validate_fail.status_code)
 
         ok, req_id, fills, metrics = make_calculation(
             timestamp=body.timestamp,
