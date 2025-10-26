@@ -49,7 +49,7 @@ function AppShell() {
           <Link to="/" className="flex items-center gap-2">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-brand-accent" />
             <span className="text-sm font-semibold tracking-wide text-white">
-              Green Vault UI
+              GreenVault UI
             </span>
           </Link>
 

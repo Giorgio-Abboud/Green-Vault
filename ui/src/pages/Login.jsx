@@ -9,8 +9,12 @@ export default function Login() {
   const [fieldErrors, setFieldErrors] = useState({});
   const { refresh } = useAuth();
 
-  const inputCls =
+  const baseInput =
     "w-full rounded-lg bg-brand-card/60 border border-brand-border px-3 py-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent/70 focus:border-brand-accent/60 transition";
+  const errorInput =
+    "w-full rounded-lg border-2 border-red-500 bg-brand-card/60 px-3 py-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/60 transition";
+  const inputClass = (field) => (fieldErrors[field] ? errorInput : baseInput);
+
   const labelCls = "text-sm text-gray-300";
   const btn =
     "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium bg-brand-accent text-black hover:brightness-110 transition shadow-soft";
@@ -62,7 +66,7 @@ export default function Login() {
           data = { error: data };
         }
       }
-      setFieldErrors({}); 
+      setFieldErrors({});
 
       if (status === 422 && data && typeof data === "object") {
         const fe = data.field_errors || {};
@@ -81,6 +85,7 @@ export default function Login() {
                 ? "Invalid email or password"
                 : data.error)
             : "Unauthorized";
+        setFieldErrors({ email: "Invalid email or password", password: "Invalid email or password" });
         setMsg(`❌ ${text}`);
         requestAnimationFrame(() => {
           document.querySelector('input[name="password"]')?.focus();
@@ -88,7 +93,6 @@ export default function Login() {
         return;
       }
 
-      // Fallback
       setMsg(`❌ ${data?.error || err?.message || "Something went wrong"}`);
     }
   }
@@ -108,7 +112,7 @@ export default function Login() {
           <div>
             <label className={labelCls}>Email</label>
             <input
-              className={inputCls}
+              className={inputClass("email")}
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -124,7 +128,7 @@ export default function Login() {
           <div>
             <label className={labelCls}>Password</label>
             <input
-              className={inputCls}
+              className={inputClass("password")}
               placeholder="••••••••"
               type="password"
               value={password}

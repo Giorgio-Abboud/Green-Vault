@@ -6,19 +6,52 @@ export default function Signup() {
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
 
   const inputCls =
     "w-full rounded-lg bg-brand-card/60 border border-brand-border px-3 py-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent/70 focus:border-brand-accent/60 transition";
+  const errorInput =
+    "w-full rounded-lg border-2 border-red-500 bg-brand-card/60 px-3 py-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/60 transition";
+  const inputClass = (field) => (fieldErrors[field] ? errorInput : inputCls);
+
   const labelCls = "text-sm text-gray-300";
   const btn =
     "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium bg-brand-accent text-black hover:brightness-110 transition shadow-soft";
+
+  function pwReqError(pw) {
+    const errs = [];
+    if (!pw || pw.length < 12) errs.push("≥12 chars");
+    if (!/[A-Z]/.test(pw)) errs.push("uppercase");
+    if (!/[a-z]/.test(pw)) errs.push("lowercase");
+    if (!/[0-9]/.test(pw)) errs.push("number");
+    if (!/[^A-Za-z0-9]/.test(pw)) errs.push("symbol");
+    return errs.length ? `Must include ${errs.join(", ")}` : "";
+  }
 
   async function submit(e) {
     e.preventDefault();
     setMsg("");
     setFieldErrors({});
+
+    const localErrors = {};
+    const pwErr = pwReqError(password);
+    if (pwErr) localErrors.password = pwErr;
+    if (password !== confirmPassword) localErrors.confirm_password = "Passwords do not match";
+
+    if (Object.keys(localErrors).length) {
+      setFieldErrors(localErrors);
+      setMsg("❌ The information you entered doesn’t meet the requirements. Please fix the highlighted fields.");
+      const order = ["email", "name", "last_name", "password", "confirm_password"];
+      const first = order.find((k) => localErrors[k]);
+      if (first) {
+        requestAnimationFrame(() => {
+          document.querySelector(`[name="${first}"]`)?.focus();
+        });
+      }
+      return;
+    }
 
     try {
       await apiPost("/v1/users", {
@@ -54,15 +87,9 @@ export default function Signup() {
           name: fe.name,
           last_name: fe.last_name,
           password: fe.password,
+          confirm_password: fe.confirm_password,
         });
         setMsg("❌ The information you entered doesn’t meet the requirements. Please fix the highlighted fields.");
-        const order = ["email", "name", "last_name", "password"];
-        const first = order.find((k) => fe[k]);
-        if (first) {
-          requestAnimationFrame(() => {
-            document.querySelector(`[name="${first}"]`)?.focus();
-          });
-        }
         return;
       }
 
@@ -91,7 +118,7 @@ export default function Signup() {
             <div>
               <label className={labelCls}>Email</label>
               <input
-                className={inputCls}
+                className={inputClass("email")}
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -99,46 +126,54 @@ export default function Signup() {
                 type="email"
                 name="email"
               />
-              {fieldErrors.email && (
-                <p className="mt-1 text-xs text-red-400">{fieldErrors.email}</p>
-              )}
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={labelCls}>First name</label>
                 <input
-                  className={inputCls}
+                  className={inputClass("name")}
                   placeholder="First name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
                   name="name"
                 />
-                {fieldErrors.name && (
-                  <p className="mt-1 text-xs text-red-400">{fieldErrors.name}</p>
-                )}
               </div>
               <div>
                 <label className={labelCls}>Last name</label>
                 <input
-                  className={inputCls}
+                  className={inputClass("last_name")}
                   placeholder="Last name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required
                   name="last_name"
                 />
-                {fieldErrors.last_name && (
-                  <p className="mt-1 text-xs text-red-400">{fieldErrors.last_name}</p>
-                )}
               </div>
             </div>
 
-            <div>
-              <label className={labelCls}>Password</label>
+            <div className="relative">
+              <div className="flex items-center gap-2">
+                <label className={labelCls}>Password</label>
+                <div className="group relative cursor-pointer">
+                  <div className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-brand-border text-[10px] text-gray-300">
+                    i
+                  </div>
+                  <div className="absolute left-6 top-0 z-10 hidden w-60 rounded-lg border border-brand-border bg-brand-card/95 p-3 text-xs text-gray-200 shadow-lg group-hover:block">
+                    Password must include:
+                    <ul className="list-disc pl-5 mt-1 space-y-0.5 text-gray-300">
+                      <li>At least 12 characters</li>
+                      <li>1 uppercase letter</li>
+                      <li>1 lowercase letter</li>
+                      <li>1 number</li>
+                      <li>1 symbol</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
               <input
-                className={inputCls}
+                className={inputClass("password")}
                 placeholder="••••••••"
                 type="password"
                 value={password}
@@ -148,6 +183,22 @@ export default function Signup() {
               />
               {fieldErrors.password && (
                 <p className="mt-1 text-xs text-red-400">{fieldErrors.password}</p>
+              )}
+            </div>
+
+            <div>
+              <label className={labelCls}>Confirm password</label>
+              <input
+                className={inputClass("confirm_password")}
+                placeholder="••••••••"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                name="confirm_password"
+              />
+              {fieldErrors.confirm_password && (
+                <p className="mt-1 text-xs text-red-400">{fieldErrors.confirm_password}</p>
               )}
             </div>
 
@@ -175,4 +226,3 @@ export default function Signup() {
     </div>
   );
 }
-

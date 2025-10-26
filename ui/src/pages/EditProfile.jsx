@@ -18,21 +18,13 @@ export default function EditProfile() {
     const coerce = (x) => {
       if (!x) return undefined;
       if (typeof x !== "string") return x;
-      try {
-        return JSON.parse(x);
-      } catch {
-        return { error: x };
-      }
+      try { return JSON.parse(x); } catch { return { error: x }; }
     };
     if (data === undefined && (typeof err === "string" || typeof err?.message === "string")) {
       const raw = String(typeof err === "string" ? err : err.message).trim();
       const m = raw.match(/^(\d{3})\s+(.+)$/);
-      if (m) {
-        status = Number(m[1]);
-        data = coerce(m[2]);
-      } else {
-        data = coerce(raw);
-      }
+      if (m) { status = Number(m[1]); data = coerce(m[2]); }
+      else { data = coerce(raw); }
     } else {
       data = coerce(data);
     }
@@ -50,9 +42,7 @@ export default function EditProfile() {
         confirm_password: confirmPassword,
       });
       setMsg("✅ Password updated successfully!");
-      setOldPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
+      setOldPassword(""); setNewPassword(""); setConfirmPassword("");
       setTimeout(() => navigate("/"), 2000);
     } catch (err) {
       const { status, data } = parseApiError(err);
@@ -62,15 +52,13 @@ export default function EditProfile() {
         setMsg("❌ The information you entered doesn’t meet the requirements. Please fix the highlighted fields.");
         const order = ["old_password", "new_password", "confirm_password"];
         const first = order.find((k) => fe[k]);
-        if (first) {
-          requestAnimationFrame(() => {
-            document.querySelector(`[name="${first}"]`)?.focus();
-          });
-        }
+        if (first) requestAnimationFrame(() => {
+          document.querySelector(`[name="${first}"]`)?.focus();
+        });
         return;
       }
       if (status === 401 || status === 403) {
-        setMsg("❌ Your session expired. Please log in again.");
+        setMsg("❌ The current password is incorrect. Please try again");
         return;
       }
       setMsg(`❌ ${data?.error || err?.message || "Something went wrong"}`);
@@ -126,8 +114,25 @@ export default function EditProfile() {
               )}
             </div>
 
-            <div>
-              <label className={labelCls}>New password</label>
+            <div className="relative">
+              <div className="flex items-center gap-2">
+                <label className={labelCls}>New password</label>
+                <div className="group relative cursor-pointer">
+                  <div className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-brand-border text-[10px] text-gray-300">
+                    i
+                  </div>
+                  <div className="absolute left-6 top-0 z-10 hidden w-60 rounded-lg border border-brand-border bg-brand-card/95 p-3 text-xs text-gray-200 shadow-lg group-hover:block">
+                    Password must include:
+                    <ul className="list-disc pl-5 mt-1 space-y-0.5 text-gray-300">
+                      <li>At least 12 characters</li>
+                      <li>1 uppercase letter</li>
+                      <li>1 lowercase letter</li>
+                      <li>1 number</li>
+                      <li>1 symbol</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
               <input
                 name="new_password"
                 type="password"
@@ -181,4 +186,3 @@ export default function EditProfile() {
     </div>
   );
 }
-
