@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -53,7 +54,8 @@ func SaveFill(app *App) http.HandlerFunc {
 		reqID := uuid.New().String()
 
 		// Timestamp (RFC3339)
-		ts, err := time.Parse(time.RFC3339, in.Fill.Timestamp)
+		tsStr := strings.TrimSpace(in.Fill.Timestamp)
+		ts, err := time.Parse(time.RFC3339, tsStr)
 		if err != nil {
 			fieldErrs["timestamp"] = "must be valid RFC3339 datetime (e.g. 2025-10-12T14:00:00Z)"
 		}
@@ -70,14 +72,20 @@ func SaveFill(app *App) http.HandlerFunc {
 			fieldErrs["mode"] = "must be 'analyze' or 'estimate'"
 		}
 
-		// Symbol (only uppercase letters, no spaces)
-		if !regexp.MustCompile(`^[A-Z]+$`).MatchString(in.Fill.Symbol) {
-			fieldErrs["symbol"] = "must contain only uppercase letters (A to Z), no spaces"
+		// Symbol (uppercase letters + digits)
+		if !regexp.MustCompile(`^[A-Z0-9]+$`).MatchString(in.Fill.Symbol) {
+			fieldErrs["symbol"] = "must contain only uppercase letters and digits (A-Z, 0-9), no spaces"
 		}
 
-		// Price (float64)
+		// Price precision (max 8 decimals)
 		if in.Fill.Price <= 0 {
 			fieldErrs["price"] = "must be a positive number"
+		} else {
+			s := fmt.Sprintf("%.10f", in.Fill.Price)
+			parts := strings.SplitN(s, ".", 2)
+			if len(parts) == 2 && len(strings.TrimRight(parts[1], "0")) > 8 {
+				fieldErrs["price"] = "must have at most 8 decimal places"
+			}
 		}
 
 		// Quantity (int64)

@@ -143,13 +143,30 @@ export default function Calculate() {
     }
 
     try {
+      // Extract numeric prefix from each metric (e.g. "-141.25" from "-141.25 bps — text")
+      const parsedMetrics = {};
+      for (const [k, v] of Object.entries(metrics || {})) {
+        if (typeof v === "string") {
+        const m = v.match(/-?\d+(\.\d+)?/);
+        parsedMetrics[k] = m ? parseFloat(m[0]) : 0;
+        } else if (typeof v === "number") {
+          parsedMetrics[k] = v;
+        } else {
+          parsedMetrics[k] = 0;
+        }
+      }
       const payload = {
-        timestamp: tsIso,
-        price: nPrice,
-        quantity: nQty,
-        side,
-        symbol: sym,
+        fill: {
+          timestamp: tsIso,
+          price: nPrice,
+          quantity: nQty,
+          side,
+          symbol: sym,
+          mode: mode.toLowerCase(),
+        },
+        metrics: parsedMetrics,
       };
+
       await apiPost("/v1/fills", payload);
       setMsg("✅ Your fills and metrics were saved!");
     } catch (err) {
@@ -217,7 +234,7 @@ export default function Calculate() {
               <label className={labelCls}>Quantity</label>
               <input
                 className={inputClass("quantity")}
-                placeholder="e.g. 2.5"
+                placeholder="e.g. 10"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 required
