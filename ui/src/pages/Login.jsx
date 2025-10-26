@@ -85,7 +85,7 @@ export default function Login() {
                 ? "Invalid email or password"
                 : data.error)
             : "Unauthorized";
-        setFieldErrors({ email: "Invalid email or password", password: "Invalid email or password" });
+        setFieldErrors({ email: true, password: true });
         setMsg(`❌ ${text}`);
         requestAnimationFrame(() => {
           document.querySelector('input[name="password"]')?.focus();
@@ -120,9 +120,6 @@ export default function Login() {
               type="email"
               name="email"
             />
-            {fieldErrors.email && (
-              <p className="mt-1 text-xs text-red-400">{fieldErrors.email}</p>
-            )}
           </div>
 
           <div>
@@ -136,9 +133,6 @@ export default function Login() {
               required
               name="password"
             />
-            {fieldErrors.password && (
-              <p className="mt-1 text-xs text-red-400">{fieldErrors.password}</p>
-            )}
           </div>
 
           <button type="submit" className={btn}>
