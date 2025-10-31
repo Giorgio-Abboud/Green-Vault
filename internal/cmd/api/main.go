@@ -86,6 +86,7 @@ func main() {
 			pr.Use(handlers.AuthMiddleware(app))
 			pr.Get("/me", handlers.Me(app))
 			pr.Post("/fills", handlers.SaveFill(app))
+			pr.Put("/users/me", handlers.EditProfile(app))
 		})
 	})
 

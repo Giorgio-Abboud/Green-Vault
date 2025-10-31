@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -38,13 +39,13 @@ func SaveFill(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := CurrentUserID(r)
 		if userID == uuid.Nil {
-			WriteError(w, http.StatusUnauthorized, ErrUnauthorized)
+			WriteError(w, http.StatusUnauthorized, &Options{Error: ErrUnauthorized.Error()})
 			return
 		}
 
 		var in SaveFillIn
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-			WriteError(w, http.StatusBadRequest, err)
+			WriteError(w, http.StatusBadRequest, &Options{Error: err.Error()})
 			return
 		}
 
@@ -53,7 +54,8 @@ func SaveFill(app *App) http.HandlerFunc {
 		reqID := uuid.New().String()
 
 		// Timestamp (RFC3339)
-		ts, err := time.Parse(time.RFC3339, in.Fill.Timestamp)
+		tsStr := strings.TrimSpace(in.Fill.Timestamp)
+		ts, err := time.Parse(time.RFC3339, tsStr)
 		if err != nil {
 			fieldErrs["timestamp"] = "must be valid RFC3339 datetime (e.g. 2025-10-12T14:00:00Z)"
 		}
@@ -70,14 +72,20 @@ func SaveFill(app *App) http.HandlerFunc {
 			fieldErrs["mode"] = "must be 'analyze' or 'estimate'"
 		}
 
-		// Symbol (only uppercase letters, no spaces)
-		if !regexp.MustCompile(`^[A-Z]+$`).MatchString(in.Fill.Symbol) {
-			fieldErrs["symbol"] = "must contain only uppercase letters (A to Z), no spaces"
+		// Symbol (uppercase letters + digits)
+		if !regexp.MustCompile(`^[A-Z0-9]+$`).MatchString(in.Fill.Symbol) {
+			fieldErrs["symbol"] = "must contain only uppercase letters and digits (A-Z, 0-9), no spaces"
 		}
 
-		// Price (float64)
+		// Price precision (max 8 decimals)
 		if in.Fill.Price <= 0 {
 			fieldErrs["price"] = "must be a positive number"
+		} else {
+			s := fmt.Sprintf("%.10f", in.Fill.Price)
+			parts := strings.SplitN(s, ".", 2)
+			if len(parts) == 2 && len(strings.TrimRight(parts[1], "0")) > 8 {
+				fieldErrs["price"] = "must have at most 8 decimal places"
+			}
 		}
 
 		// Quantity (int64)
@@ -97,7 +105,11 @@ func SaveFill(app *App) http.HandlerFunc {
 
 		// If any validation failed
 		if len(fieldErrs) > 0 {
-			WriteValidationError(w, reqID, fieldErrs)
+			WriteError(w, http.StatusUnprocessableEntity, &Options{
+				Error:       ErrValidationFailed.Error(),
+				RequestID:   reqID,
+				FieldErrors: fieldErrs,
+			})
 			return
 		}
 
@@ -118,7 +130,7 @@ func SaveFill(app *App) http.HandlerFunc {
 		}
 
 		if _, err := app.Store.CreateUserFill(r.Context(), uf); err != nil {
-			WriteError(w, http.StatusInternalServerError, err)
+			WriteError(w, http.StatusInternalServerError, &Options{Error: err.Error()})
 			return
 		}
 
@@ -133,15 +145,17 @@ func SaveFill(app *App) http.HandlerFunc {
 			Drift:           in.Metrics.Drift,
 		}
 		if _, err := app.Store.CreateMetric(r.Context(), m); err != nil {
-			WriteError(w, http.StatusInternalServerError, err)
+			WriteError(w, http.StatusInternalServerError, &Options{Error: err.Error()})
 			return
 		}
 
-		WriteJSON(w, http.StatusCreated, map[string]any{
-			"ok":        true,
-			"req_id":    reqID,
-			"fill_id":   fillID,
-			"metric_id": metricID,
+		WriteJSON(w, http.StatusCreated, &Options{
+			Data: map[string]any{
+				"ok":        true,
+				"req_id":    reqID,
+				"fill_id":   fillID,
+				"metric_id": metricID,
+			},
 		})
 	}
 }

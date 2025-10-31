@@ -83,7 +83,7 @@ func AuthMiddleware(app *App) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			uid, err := app.parseSession(r)
 			if err != nil || uid == uuid.Nil {
-				WriteError(w, http.StatusUnauthorized, errors.New("unauthorized"))
+				WriteError(w, http.StatusUnauthorized, &Options{Error: ErrUnauthorized.Error()})
 				return
 			}
 			ctx := context.WithValue(r.Context(), ctxUserIDKey, uid)

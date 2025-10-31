@@ -92,6 +92,36 @@ func (f *fakeStore) CreateMetric(_ context.Context, m *models.Metric) (*models.M
 	return m, nil
 }
 
+func (f *fakeStore) UpdateUser(_ context.Context, u *models.User) (*models.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if u == nil || u.ID == uuid.Nil || u.Email == "" {
+		return nil, errors.New("invalid user params")
+	}
+
+	// Find the existing user by ID
+	var existingEmail string
+	found := false
+	for email, user := range f.users {
+		if user.ID == u.ID {
+			existingEmail = email
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, errors.New("user not found")
+	}
+
+	// Update the record in place
+	f.users[existingEmail] = *u
+
+	// Return a copy of the updated user
+	cp := *u
+	return &cp, nil
+}
+
 /*** App helper for tests ***/
 
 func newTestApp(t *testing.T) *App {
