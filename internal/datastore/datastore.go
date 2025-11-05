@@ -20,6 +20,7 @@ var (
 	ErrMissingUserFields   = errors.New("user must have id, email, name, last_name, and password_hash")
 	ErrMissingUserFillData = errors.New("user_fill must have id, user_id, symbol, timestamp, side, and mode")
 	ErrMissingMetricData   = errors.New("metric must have id and user_fill_id")
+	ErrUserNotFound = errors.New("user not found")
 )
 
 // ---------- Users ----------
@@ -65,6 +66,22 @@ func (s *Store) UpdateUser(ctx context.Context, u *models.User) (*models.User, e
 	}
 	return u, nil
 }
+
+func (s *Store) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	if id == uuid.Nil {
+		return ErrMissingUserFields
+	}
+	result := s.DB.WithContext(ctx).Delete(&models.User{}, "id = ?", id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrUserNotFound
+	}
+
+	return nil
+}
+
 
 // ---------- User Fills ----------
 
