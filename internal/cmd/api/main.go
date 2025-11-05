@@ -87,6 +87,7 @@ func main() {
 			pr.Get("/me", handlers.Me(app))
 			pr.Post("/fills", handlers.SaveFill(app))
 			pr.Put("/users/me", handlers.EditProfile(app))
+			pr.Delete("/users/me", handlers.DeleteUser(app))
 		})
 	})
 

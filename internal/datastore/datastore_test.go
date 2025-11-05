@@ -216,69 +216,6 @@ func TestGetUserByID(t *testing.T) {
 	}
 }
 
-func TestDeleteUser(t *testing.T) {
-	store := newStore(t)
-	ctx := context.Background()
-
-	idTest := uuid.New()
-	u := models.User{
-		ID:           idTest,
-		Email:        "myemail@email.com",
-		Name:         "Roary",
-		LastName:     "Panther",
-		PasswordHash: "hashed",
-	}
-
-	if _, err := store.CreateUser(ctx, &u); err != nil {
-		t.Fatalf("seed CreateUser: %v", err)
-	}
-
-	tests := []struct {
-		name    string
-		id      uuid.UUID
-		wantErr bool
-	}{
-		{
-			name:    "ok",
-			id:      idTest,
-			wantErr: false,
-		},
-		{
-			name:    "empty uuid",
-			id:      uuid.Nil,
-			wantErr: true,
-		},
-		{
-			name:    "not found",
-			id:      uuid.New(),
-			wantErr: true,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := store.DeleteUser(ctx, tc.id)
-
-			if tc.wantErr {
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			// Try to get the deleted user; should now fail
-			_, err = store.GetUserByID(ctx, tc.id)
-			if err == nil {
-				t.Fatalf("expected user to be deleted, but still found")
-			}
-		})
-	}
-}
-
-
 /************ CreateUserFill ************/
 
 func TestCreateUserFill(t *testing.T) {
@@ -405,3 +342,171 @@ func TestCreateMetric(t *testing.T) {
 		})
 	}
 }
+
+/************ DeleteUser ************/
+
+func TestDeleteUser(t *testing.T) {
+	store := newStore(t)
+	ctx := context.Background()
+
+	// Seed a test user
+	idTest := uuid.New()
+	u := models.User{
+		ID:           idTest,
+		Email:        "myemail@email.com",
+		Name:         "Roary",
+		LastName:     "Panther",
+		PasswordHash: "hashed",
+	}
+
+	if _, err := store.CreateUser(ctx, &u); err != nil {
+		t.Fatalf("seed CreateUser: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		id      uuid.UUID
+		wantErr bool
+	}{
+		{
+			name:    "ok",
+			id:      idTest,
+			wantErr: false,
+		},
+		{
+			name:    "empty uuid",
+			id:      uuid.Nil,
+			wantErr: true,
+		},
+		{
+			name:    "not found",
+			id:      uuid.New(),
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Call DeleteUser, which returns (*models.User, error)
+			deletedUser, err := store.DeleteUser(ctx, tc.id)
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if deletedUser == nil {
+				t.Fatalf("expected deleted user, got nil")
+			}
+
+			// Ensure the deleted user matches expected ID
+			if deletedUser.ID != tc.id {
+				t.Errorf("deleted user ID mismatch: got %v, want %v", deletedUser.ID, tc.id)
+			}
+
+			// ✅ Verify that the user no longer exists in the database
+			_, err = store.GetUserByID(ctx, tc.id)
+			if err == nil {
+				t.Fatalf("expected user to be deleted, but still found")
+			}
+		})
+	}
+}
+
+/************ DeleteUserFill ************/
+
+func TestDeleteUserFill(t *testing.T) {
+	store := newStore(t)
+	ctx := context.Background()
+
+	// Seed a test user
+	u := models.User{
+		ID:           uuid.New(),
+		Email:        "filldelete@example.com",
+		Name:         "Delete",
+		LastName:     "Test",
+		PasswordHash: "hashed",
+	}
+	if _, err := store.CreateUser(ctx, &u); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	// Seed a user fill
+	fid := uuid.New()
+	f := models.UserFill{
+		ID:        fid,
+		UserID:    u.ID,
+		Symbol:    "AAPL",
+		Timestamp: time.Now().UTC(),
+		Price:     150.25,
+		Side:      "buy",
+		Quantity:  5,
+		Mode:      "Analyze",
+		Result:    "SUCCESS",
+	}
+	if _, err := store.CreateUserFill(ctx, &f); err != nil {
+		t.Fatalf("seed fill: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		id      uuid.UUID
+		wantErr bool
+	}{
+		{
+			name:    "ok",
+			id:      fid,
+			wantErr: false,
+		},
+		{
+			name:    "empty uuid",
+			id:      uuid.Nil,
+			wantErr: true,
+		},
+		{
+			name:    "not found",
+			id:      uuid.New(),
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Call DeleteUserFill which should return (*models.UserFill, error)
+			deletedFill, err := store.DeleteUserFill(ctx, tc.id)
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if deletedFill == nil {
+				t.Fatalf("expected deleted fill, got nil")
+			}
+
+			if deletedFill.ID != tc.id {
+				t.Errorf("deleted fill ID mismatch: got %v, want %v", deletedFill.ID, tc.id)
+			}
+
+			// ✅ Confirm the fill no longer exists
+			_, err = store.GetUserByID(ctx, tc.id)
+			if err == nil {
+				t.Fatalf("expected fill to be deleted, but still found")
+			}
+		})
+	}
+}
+
+
