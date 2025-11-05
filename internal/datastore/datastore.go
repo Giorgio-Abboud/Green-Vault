@@ -20,7 +20,7 @@ var (
 	ErrMissingUserFields   = errors.New("user must have id, email, name, last_name, and password_hash")
 	ErrMissingUserFillData = errors.New("user_fill must have id, user_id, symbol, timestamp, side, and mode")
 	ErrMissingMetricData   = errors.New("metric must have id and user_fill_id")
-	ErrUserNotFound = errors.New("user not found")
+	ErrUserNotFound        = errors.New("user not found")
 )
 
 // ---------- Users ----------
@@ -67,20 +67,21 @@ func (s *Store) UpdateUser(ctx context.Context, u *models.User) (*models.User, e
 	return u, nil
 }
 
-func (s *Store) DeleteUser(ctx context.Context, id uuid.UUID) error {
+func (s *Store) DeleteUser(ctx context.Context, id uuid.UUID) (*models.UserFill, error) {
 	if id == uuid.Nil {
-		return ErrMissingUserFields
+		return nil, errors.New("id required")
 	}
-	result := s.DB.WithContext(ctx).Delete(&models.User{}, "id = ?", id)
+	var f models.UserFill
+	result := s.DB.WithContext(ctx).First(&f, "id = ?", id)
 	if result.Error != nil {
-		return result.Error
+		return nil, result.Error
 	}
-	if result.RowsAffected == 0 {
-		return ErrUserNotFound
+	if err := s.DB.WithContext(ctx).Delete(&f).Error; err != nil {
+		return nil, err
 	}
-
-	return nil
+	return &f, nil
 }
+
 
 
 // ---------- User Fills ----------
@@ -95,6 +96,23 @@ func (s *Store) CreateUserFill(ctx context.Context, uf *models.UserFill) (*model
 	}
 	return uf, nil
 }
+
+func (s *Store) DeleteUserFill(ctx context.Context, id uuid.UUID) (*models.UserFill, error) {
+	if id == uuid.Nil {
+		return nil, ErrMissingUserFillData
+	}
+	var uf models.UserFill
+	// Check if the fill exists
+	if err := s.DB.WithContext(ctx).First(&uf, "id = ?", id).Error; err != nil {
+		return nil, err // will return gorm.ErrRecordNotFound if not found
+	}
+	// Delete it
+	if err := s.DB.WithContext(ctx).Delete(&uf).Error; err != nil {
+		return nil, err
+	}
+	return &uf, nil
+}
+
 
 // ---------- Metrics ----------
 

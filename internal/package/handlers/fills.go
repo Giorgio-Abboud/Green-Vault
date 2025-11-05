@@ -159,3 +159,76 @@ func SaveFill(app *App) http.HandlerFunc {
 		})
 	}
 }
+
+
+type DeleteUserFill struct {
+	ID              uuid.UUID `gorm:"type:uuid;primaryKey"`
+	UserID          uuid.UUID `gorm:"type:uuid;not null;index"`
+	Timestamp       time.Time
+	Price           float64
+	Quantity        int64
+	Side            string
+	Symbol          string
+	Mode            string
+	Result          string
+	VwapSlippage    float64
+	Shortfall       float64
+	EffectiveSpread float64
+	RealizedSpread  float64
+	MarketImpact    float64
+	Drift           float64
+	ClientRequestID string
+}
+
+func DeleteFill(app *App) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID := CurrentUserID(r)
+		if userID == uuid.Nil {
+			WriteError(w, http.StatusUnauthorized, &Options{Error: ErrUnauthorized.Error()})
+			return
+		}
+
+		reqID := uuid.New().String()
+
+		// Decode input JSON (must contain fill_id)
+		var in struct {
+			FillID uuid.UUID `json:"fill_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			WriteError(w, http.StatusBadRequest, &Options{
+				Error:     "invalid request body",
+				RequestID: reqID,
+			})
+			return
+		}
+
+		if in.FillID == uuid.Nil {
+			WriteError(w, http.StatusBadRequest, &Options{
+				Error:     "fill_id is required",
+				RequestID: reqID,
+			})
+			return
+		}
+
+		// Delete the fill from the DB (and its metrics)
+		deletedFill, err := app.Store.DeleteUser(r.Context(), userID)
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, &Options{
+				Error:     err.Error(),
+				RequestID: reqID,
+			})
+			return
+		}
+
+		WriteJSON(w, http.StatusOK, &Options{
+		Data: map[string]any{
+			"ok":      true,
+			"req_id":  reqID,
+			"user_id": deletedFill.ID,
+			"message": "user and associated fills deleted successfully",
+			},
+		})
+	}
+}
+
+
