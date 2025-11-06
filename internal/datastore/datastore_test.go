@@ -349,7 +349,7 @@ func TestDeleteUser(t *testing.T) {
 	store := newStore(t)
 	ctx := context.Background()
 
-	// Seed a test user
+	// 🧩 Seed a test user
 	idTest := uuid.New()
 	u := models.User{
 		ID:           idTest,
@@ -358,12 +358,33 @@ func TestDeleteUser(t *testing.T) {
 		LastName:     "Panther",
 		PasswordHash: "hashed",
 	}
-
 	if _, err := store.CreateUser(ctx, &u); err != nil {
 		t.Fatalf("seed CreateUser: %v", err)
 	}
 
-	tests := []struct {
+	// 🧩 Seed a user fill tied to that user
+	fill := models.UserFill{
+		ID:     uuid.New(),
+		UserID: idTest,
+		Symbol: "AAPL",
+		Price:  180.5,
+		Side:   "buy",
+	}
+	if _, err := store.CreateUserFill(ctx, &fill); err != nil {
+		t.Fatalf("seed CreateUserFill: %v", err)
+	}
+
+	// 🧩 Seed a metric tied to that user fill (not directly to user)
+	metric := models.Metric{
+		ID:         uuid.New(),
+		UserFillID: fill.ID,
+		VwapSlippage: 0.1,
+	}
+	if _, err := store.CreateMetric(ctx, &metric); err != nil {
+		t.Fatalf("seed CreateMetric: %v", err)
+	}
+
+	for _, tc := range []struct {
 		name    string
 		id      uuid.UUID
 		wantErr bool
@@ -383,12 +404,9 @@ func TestDeleteUser(t *testing.T) {
 			id:      uuid.New(),
 			wantErr: true,
 		},
-	}
-
-	for _, tc := range tests {
+	} {
 		t.Run(tc.name, func(t *testing.T) {
-			// Call DeleteUser, which returns (*models.User, error)
-			deletedUser, err := store.DeleteUser(ctx, tc.id)
+			got, err := store.DeleteUser(ctx, tc.id)
 
 			if tc.wantErr {
 				if err == nil {
@@ -401,19 +419,38 @@ func TestDeleteUser(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			if deletedUser == nil {
-				t.Fatalf("expected deleted user, got nil")
+			if got == nil {
+				t.Fatal("expected deleted user, got nil")
 			}
 
-			// Ensure the deleted user matches expected ID
-			if deletedUser.ID != tc.id {
-				t.Errorf("deleted user ID mismatch: got %v, want %v", deletedUser.ID, tc.id)
+			if got.ID != tc.id {
+				t.Fatalf("deleted user ID mismatch: got %v, want %v", got.ID, tc.id)
 			}
 
-			// ✅ Verify that the user no longer exists in the database
+			// Verify user deleted
 			_, err = store.GetUserByID(ctx, tc.id)
 			if err == nil {
 				t.Fatalf("expected user to be deleted, but still found")
+			}
+
+			// Verify all user fills for this user are deleted
+			fills, err := store.ListUserFillsByUserID(ctx, tc.id)
+			if err != nil {
+				t.Fatalf("error checking user fills: %v", err)
+			}
+			if len(fills) != 0 {
+				t.Fatalf("expected all user fills to be deleted, found %d", len(fills))
+			}
+
+			// Verify all metrics tied to the user's fills are deleted
+			var metrics []models.Metric
+			if err := store.DB.WithContext(ctx).Find(&metrics).Error; err != nil {
+				t.Fatalf("error querying metrics: %v", err)
+			}
+			for _, m := range metrics {
+				if m.UserFillID == fill.ID {
+					t.Fatalf("expected metrics for fill %v to be deleted, but found one", fill.ID)
+				}
 			}
 		})
 	}

@@ -110,3 +110,21 @@ func (s *Store) CreateMetric(ctx context.Context, m *models.Metric) (*models.Met
 	}
 	return m, nil
 }
+
+//  ---------- Listing ----------
+
+func (s *Store) ListUserFillsByUserID(ctx context.Context, userID uuid.UUID) ([]models.UserFill, error) {
+	var fills []models.UserFill
+	if err := s.DB.WithContext(ctx).Where("user_id = ?", userID).Find(&fills).Error; err != nil {
+		return nil, err
+	}
+	return fills, nil
+}
+
+func (s *Store) ListMetricsByUserID(ctx context.Context, userID uuid.UUID) ([]models.Metric, error) {
+	var metrics []models.Metric
+	if err := s.DB.WithContext(ctx).Where("user_id = ?", userID).Find(&metrics).Error; err != nil {
+		return nil, err
+	}
+	return metrics, nil
+}

@@ -384,7 +384,7 @@ func DeleteUser(app *App) http.HandlerFunc {
 			})
 			return
 		}
-		
+
 		// Delete the user from the database
 		_, err := app.Store.DeleteUser(r.Context(), uid)
 		if err != nil {
@@ -408,3 +408,4 @@ func DeleteUser(app *App) http.HandlerFunc {
 		})
 	}
 }
+
