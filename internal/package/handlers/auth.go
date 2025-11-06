@@ -264,8 +264,8 @@ func EditProfile(app *App) http.HandlerFunc {
 		reqID := uuid.NewString()
 
 		type in struct {
-			OldPassword string `json:"old_password"`
-			NewPassword string `json:"new_password"`
+			OldPassword     string `json:"old_password"`
+			NewPassword     string `json:"new_password"`
 			ConfirmPassword string `json:"confirm_password"`
 		}
 
@@ -287,7 +287,7 @@ func EditProfile(app *App) http.HandlerFunc {
 		if oldPassword == "" {
 			fieldErrs["old_password"] = "required"
 		}
-		
+
 		// New password validation
 		if newPassword == "" {
 			fieldErrs["new_password"] = "required"
@@ -314,9 +314,8 @@ func EditProfile(app *App) http.HandlerFunc {
 		if confirmPassword == "" {
 			fieldErrs["confirm_password"] = "required"
 		} else if confirmPassword != newPassword {
-			fieldErrs["confirm_password"] = "does not match"	
+			fieldErrs["confirm_password"] = "does not match"
 		}
-		
 
 		// If any validation errors exist, return 422
 		if len(fieldErrs) > 0 {
@@ -364,11 +363,49 @@ func EditProfile(app *App) http.HandlerFunc {
 
 		WriteJSON(w, http.StatusOK, &Options{
 			Data: map[string]any{
-				"id":    out.ID,
-				"email": out.Email,
-				"name":  out.Name,
+				"id":        out.ID,
+				"email":     out.Email,
+				"name":      out.Name,
 				"last_name": out.LastName,
 			},
 		})
 	}
 }
+
+func DeleteUser(app *App) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		reqID := uuid.NewString()
+
+		// Get current logged-in user's ID
+		uid := CurrentUserID(r)
+		if uid == uuid.Nil {
+			WriteError(w, http.StatusUnauthorized, &Options{
+				Error: ErrUnauthorized.Error(),
+			})
+			return
+		}
+
+		// Delete the user from the database
+		_, err := app.Store.DeleteUser(r.Context(), uid)
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, &Options{
+				Error:     err.Error(),
+				RequestID: reqID,
+			})
+			return
+		}
+
+		// Clear session cookie after successful deletion
+		app.clearSession(w)
+
+		// Send confirmation response
+		WriteJSON(w, http.StatusOK, &Options{
+			Data: map[string]any{
+				"message": "account deleted successfully",
+				"user_id": uid,
+			},
+			RequestID: reqID,
+		})
+	}
+}
+
