@@ -162,3 +162,95 @@ func decodeStdResp(t *testing.T, rr *httptest.ResponseRecorder) stdResp {
 	}
 	return r
 }
+
+func (f *fakeStore) DeleteUser(_ context.Context, id uuid.UUID) (*models.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	// Validate input
+	if id == uuid.Nil {
+		return nil, errors.New("invalid user id")
+	}
+
+	// Find user by ID (since `users` map uses email as key)
+	var foundEmail string
+	var user models.User
+	for email, u := range f.users {
+		if u.ID == id {
+			foundEmail = email
+			user = u
+			break
+		}
+	}
+	if foundEmail == "" {
+		return nil, errors.New("user not found")
+	}
+
+	// ✅ Delete the user
+	delete(f.users, foundEmail)
+
+	// ✅ Delete related fills and metrics
+	for fid, fill := range f.fills {
+		if fill.UserID == id {
+			// remove the fill
+			delete(f.fills, fid)
+
+			// also remove any metrics tied to this fill
+			for mid, m := range f.metrics {
+				if m.UserFillID == fid {
+					delete(f.metrics, mid)
+				}
+			}
+		}
+	}
+
+	cp := user
+	return &cp, nil
+}
+
+
+func (f *fakeStore) ListUserFillsByUserID(_ context.Context, userID uuid.UUID) ([]models.UserFill, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if userID == uuid.Nil {
+		return nil, errors.New("invalid user id")
+	}
+
+	var fills []models.UserFill
+	for _, fill := range f.fills {
+		if fill.UserID == userID {
+			fills = append(fills, fill)
+		}
+	}
+
+	return fills, nil
+}
+
+func (f *fakeStore) ListMetricsByUserID(_ context.Context, userID uuid.UUID) ([]models.Metric, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if userID == uuid.Nil {
+		return nil, errors.New("invalid user id")
+	}
+
+	// Find all UserFill IDs belonging to this user
+	userFillIDs := make(map[uuid.UUID]struct{})
+	for _, fill := range f.fills {
+		if fill.UserID == userID {
+			userFillIDs[fill.ID] = struct{}{}
+		}
+	}
+
+	// Collect all metrics linked to those fills
+	var metrics []models.Metric
+	for _, m := range f.metrics {
+		if _, ok := userFillIDs[m.UserFillID]; ok {
+			metrics = append(metrics, m)
+		}
+	}
+
+	return metrics, nil
+}
+
