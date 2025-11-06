@@ -97,22 +97,6 @@ func (s *Store) CreateUserFill(ctx context.Context, uf *models.UserFill) (*model
 	return uf, nil
 }
 
-func (s *Store) DeleteUserFill(ctx context.Context, id uuid.UUID) (*models.UserFill, error) {
-	if id == uuid.Nil {
-		return nil, ErrMissingUserFillData
-	}
-	var uf models.UserFill
-	// Check if the fill exists
-	if err := s.DB.WithContext(ctx).First(&uf, "id = ?", id).Error; err != nil {
-		return nil, err // will return gorm.ErrRecordNotFound if not found
-	}
-	// Delete it
-	if err := s.DB.WithContext(ctx).Delete(&uf).Error; err != nil {
-		return nil, err
-	}
-	return &uf, nil
-}
-
 
 // ---------- Metrics ----------
 
