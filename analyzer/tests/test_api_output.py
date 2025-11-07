@@ -14,7 +14,7 @@ TZ = ZoneInfo("America/New_York")
 def sample_bars_df():
     # create 5 contiguous 1-minute bars starting at 2025-06-03 10:15:00-04:00
     start = pd.Timestamp("2025-06-03T10:15:00-04:00").tz_convert(TZ)
-    starts = pd.date_range(start=start, periods=5, freq="1T", tz=TZ)
+    starts = pd.date_range(start=start, periods=5, freq="1min", tz=TZ)
     ends = starts + pd.Timedelta(minutes=1)
 
     open_p = [100.0, 100.5, 101.0, 100.8, 101.2]
@@ -113,7 +113,7 @@ def test_no_missing_required_values(sample_bars_df):
 
 def test_start_column_is_datetime_with_tz(sample_bars_df):
     # ensure dtype is datetime with timezone
-    assert pd.api.types.is_datetime64tz_dtype(sample_bars_df["start"])
+    assert isinstance(sample_bars_df["start"].dtype, pd.DatetimeTZDtype)
 
 
 def test_dataframe_index_is_reset(sample_bars_df):
@@ -131,7 +131,7 @@ def test_empty_dict_payload_raises():
 def test_data_recency_check_raises():
     # build a df with an extremely old timestamp
     old_start = pd.Timestamp(datetime.now(tz=TZ) - timedelta(days=365 * 30)).tz_convert(TZ)
-    starts = pd.date_range(start=old_start, periods=2, freq="1T", tz=TZ)
+    starts = pd.date_range(start=old_start, periods=2, freq="1min", tz=TZ)
     ends = starts + pd.Timedelta(minutes=1)
     df = pd.DataFrame({
         "start": starts,

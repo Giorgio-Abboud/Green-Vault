@@ -10,3 +10,4 @@ analyzer/cmd/__pycache__
 analyzer/src/__pycache__
 analyzer/tests/__pycache__
 .pytest_cache
+.venv
