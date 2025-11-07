@@ -53,7 +53,7 @@ export default function EditProfile() {
         const order = ["old_password", "new_password", "confirm_password"];
         const first = order.find((k) => fe[k]);
         if (first) requestAnimationFrame(() => {
-          document.querySelector(`[name=\"${first}\"]`)?.focus();
+          document.querySelector(`[name="${first}"]`)?.focus();
         });
         return;
       }
@@ -172,7 +172,31 @@ export default function EditProfile() {
             <div className="flex items-center gap-3 pt-2">
               <button type="submit" className={btnPrimary}>Save</button>
               <button type="button" onClick={() => navigate("/")} className={btnGhost}>← Back</button>
-              <button type="button" className={btnDanger}>Delete account</button>
+
+              <button
+                type="button"
+                className={btnDanger}
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/v1/users/me`, {
+                      method: "DELETE",
+                      credentials: "include",
+                      headers: { "Accept": "application/json" },
+                    });
+                    if (res.ok) {
+                      setMsg("✅ Account deleted successfully");
+                      setTimeout(() => navigate("/"), 1500);
+                    } else {
+                      const text = await res.text();
+                      setMsg(`❌ Failed (HTTP ${res.status}): ${text || res.statusText}`);
+                    }
+                  } catch (err) {
+                    setMsg(`❌ ${err.message || "Delete failed"}`);
+                  }
+                }}
+              >
+                Delete account
+              </button>
             </div>
           </form>
 
