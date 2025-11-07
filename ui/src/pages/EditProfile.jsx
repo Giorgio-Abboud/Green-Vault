@@ -53,7 +53,7 @@ export default function EditProfile() {
         const order = ["old_password", "new_password", "confirm_password"];
         const first = order.find((k) => fe[k]);
         if (first) requestAnimationFrame(() => {
-          document.querySelector(`[name="${first}"]`)?.focus();
+          document.querySelector(`[name=\"${first}\"]`)?.focus();
         });
         return;
       }
@@ -74,6 +74,8 @@ export default function EditProfile() {
     "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium bg-brand-accent text-black hover:brightness-110 transition shadow-soft";
   const btnGhost =
     "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium bg-brand-card/60 text-gray-200 border border-brand-border hover:border-brand-accent/50 transition";
+  const btnDanger =
+    "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium bg-red-600 text-white hover:brightness-110 transition shadow-soft";
 
   const inputClass = (field) => (fieldErrors[field] ? errorInput : baseInput);
   const isOk = msg.startsWith("✅");
@@ -110,7 +112,9 @@ export default function EditProfile() {
                 className={inputClass("old_password")}
               />
               {fieldErrors.old_password && (
-                <div className="mt-1 text-xs text-red-400">Old password field does not match current password</div>
+                <div className="mt-1 text-xs text-red-400">
+                  Old password field does not match current password
+                </div>
               )}
             </div>
 
@@ -142,7 +146,9 @@ export default function EditProfile() {
                 className={inputClass("new_password")}
               />
               {fieldErrors.new_password && (
-                <div className="mt-1 text-xs text-red-400">Must meet requirements (uppercase, lowercase, digit, symbol, ≥12 chars)</div>
+                <div className="mt-1 text-xs text-red-400">
+                  Must meet requirements (uppercase, lowercase, digit, symbol, ≥12 chars)
+                </div>
               )}
             </div>
 
@@ -157,13 +163,16 @@ export default function EditProfile() {
                 className={inputClass("confirm_password")}
               />
               {fieldErrors.confirm_password && (
-                <div className="mt-1 text-xs text-red-400">The new password must match the confirmation</div>
+                <div className="mt-1 text-xs text-red-400">
+                  The new password must match the confirmation
+                </div>
               )}
             </div>
 
             <div className="flex items-center gap-3 pt-2">
               <button type="submit" className={btnPrimary}>Save</button>
               <button type="button" onClick={() => navigate("/")} className={btnGhost}>← Back</button>
+              <button type="button" className={btnDanger}>Delete account</button>
             </div>
           </form>
 

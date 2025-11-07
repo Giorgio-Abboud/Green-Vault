@@ -12,6 +12,10 @@ export default function Calculate() {
   const [msg, setMsg] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // NEW: control Save button visibility/feedback
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
+
   const baseInput =
     "w-full rounded-lg bg-brand-card/60 border border-brand-border px-3 py-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent/70 focus:border-brand-accent/60 transition";
   const errorInput =
@@ -51,6 +55,7 @@ export default function Calculate() {
     e.preventDefault();
     setMsg("");
     setFieldErrors({});
+    setHasSaved(false); // allow saving again after a fresh Run
     let local = {};
     const nPrice = Number.parseFloat(price);
     const nQty = Number.parseFloat(quantity);
@@ -108,6 +113,7 @@ export default function Calculate() {
       setMsg("No metrics to save");
       return;
     }
+    setIsSaving(true);     // hide button immediately
     setMsg("");
     setFieldErrors({});
 
@@ -139,6 +145,7 @@ export default function Calculate() {
       if (first) requestAnimationFrame(() => {
         document.querySelector(`[name="${first}"]`)?.focus();
       });
+      setIsSaving(false); // show button again since we didn't save
       return;
     }
 
@@ -147,8 +154,8 @@ export default function Calculate() {
       const parsedMetrics = {};
       for (const [k, v] of Object.entries(metrics || {})) {
         if (typeof v === "string") {
-        const m = v.match(/-?\d+(\.\d+)?/);
-        parsedMetrics[k] = m ? parseFloat(m[0]) : 0;
+          const m = v.match(/-?\d+(\.\d+)?/);
+          parsedMetrics[k] = m ? parseFloat(m[0]) : 0;
         } else if (typeof v === "number") {
           parsedMetrics[k] = v;
         } else {
@@ -169,6 +176,7 @@ export default function Calculate() {
 
       await apiPost("/v1/fills", payload);
       setMsg("✅ Your fills and metrics were saved!");
+      setHasSaved(true);  // keep hidden after success
     } catch (err) {
       let { status, data } = parseApiError(err);
       if (status === 422 && data && typeof data === "object") {
@@ -180,9 +188,11 @@ export default function Calculate() {
         if (first) requestAnimationFrame(() => {
           document.querySelector(`[name="${first}"]`)?.focus();
         });
-        return;
+      } else {
+        setMsg(`❌ ${data?.error || err?.message || "Something went wrong"}`);
       }
-      setMsg(`❌ ${data?.error || err?.message || "Something went wrong"}`);
+    } finally {
+      setIsSaving(false); // if it failed, button will reappear
     }
   }
 
@@ -287,12 +297,19 @@ export default function Calculate() {
           <div className="mt-6 rounded-xl2 border border-brand-border bg-brand-card p-5 shadow-soft">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-lg font-medium text-gray-100 flex items-center gap-2"><span className="text-brand-accent">⚙️</span> Result Metrics</h3>
-              <button onClick={save} className={btnPrimary}>Save to DB</button>
+
+              {/* Hide while saving and after a successful save */}
+              {!isSaving && !hasSaved && (
+                <button onClick={save} className={btnPrimary}>Save Fills And Metric</button>
+              )}
+              {isSaving && (
+                <span className="text-sm text-gray-300">Saving…</span>
+              )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               {Object.entries(metrics).map(([key, value]) => (
                 <div key={key} className="flex items-center justify-between rounded-lg border border-brand-border bg-black/30 px-4 py-3 text-sm text-gray-200 shadow-sm">
-                  <span className="capitalize tracking-tight text-gray-300">{key.replace(/_/g, " ")}</span>
+                  <span className="cpaitalize tracking-tight text-gray-300">{key.replace(/_/g, " ")}</span>
                   <span className="font-semibold text-emerald-400">{value}</span>
                 </div>
               ))}
@@ -304,8 +321,8 @@ export default function Calculate() {
           <div className={[
             "mt-6 rounded-lg border px-4 py-3 text-sm",
             isOk ? "border-emerald-600/40 bg-emerald-500/10 text-emerald-300"
-                : isErr ? "border-red-600/40 bg-red-500/10 text-red-300"
-                : "border-brand-border bg-brand-card/80 text-gray-300",
+                 : isErr ? "border-red-600/40 bg-red-500/10 text-red-300"
+                 : "border-brand-border bg-brand-card/80 text-gray-300",
           ].join(" ")}>
             {msg}
           </div>
