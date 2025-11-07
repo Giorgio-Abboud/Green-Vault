@@ -364,3 +364,68 @@ func TestEditProfile(t *testing.T) {
 		})
 	}
 }
+
+func TestDeleteUser(t *testing.T) {
+	app := newTestApp(t)
+
+	hashed, _ := bcrypt.GenerateFromPassword([]byte("DeleteMe123!"), bcrypt.DefaultCost)
+	u, err := app.Store.CreateUser(context.Background(), &models.User{
+		ID:           uuid.New(),
+		Email:        "deleteme@example.com",
+		Name:         "Delete",
+		LastName:     "User",
+		PasswordHash: string(hashed),
+	})
+	if err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	tests := []struct {
+		name       string
+		authUserID uuid.UUID
+		wantStatus int
+		wantOK     bool
+	}{
+		{
+			name:       "unauthorized (no user)",
+			authUserID: uuid.Nil,
+			wantStatus: http.StatusUnauthorized,
+			wantOK:     false,
+		},
+		{
+			name:       "valid delete",
+			authUserID: u.ID,
+			wantStatus: http.StatusNoContent,
+			wantOK:     true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest("DELETE", "/v1/users/me", nil)
+			if tc.authUserID != uuid.Nil {
+				req = withUser(req, tc.authUserID)
+			}
+
+			rr := httptest.NewRecorder()
+			DeleteUser(app).ServeHTTP(rr, req)
+
+			if rr.Code != tc.wantStatus {
+				t.Fatalf("status = %d; want %d. body=%s", rr.Code, tc.wantStatus, rr.Body.String())
+			}
+
+			res := decodeStdResp(t, rr)
+			if res.Ok != tc.wantOK {
+				t.Fatalf("ok = %v; want %v. body=%s", res.Ok, tc.wantOK, rr.Body.String())
+			}
+
+			if tc.name == "valid delete" {
+				// 🧩 Verify user actually deleted from DB
+				_, err := app.Store.GetUserByID(context.Background(), u.ID)
+				if err == nil {
+					t.Fatalf("expected user to be deleted, but found one")
+				}
+			}
+		})
+	}
+}

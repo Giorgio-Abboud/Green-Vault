@@ -20,6 +20,7 @@ var (
 	ErrMissingUserFields   = errors.New("user must have id, email, name, last_name, and password_hash")
 	ErrMissingUserFillData = errors.New("user_fill must have id, user_id, symbol, timestamp, side, and mode")
 	ErrMissingMetricData   = errors.New("metric must have id and user_fill_id")
+	ErrUserNotFound        = errors.New("user not found")
 )
 
 // ---------- Users ----------
@@ -66,6 +67,21 @@ func (s *Store) UpdateUser(ctx context.Context, u *models.User) (*models.User, e
 	return u, nil
 }
 
+func (s *Store) DeleteUser(ctx context.Context, id uuid.UUID) (*models.User, error) {
+	if id == uuid.Nil {
+		return nil, errors.New("id required")
+	}
+	var f models.User
+	result := s.DB.WithContext(ctx).First(&f, "id = ?", id)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	if err := s.DB.WithContext(ctx).Delete(&f).Error; err != nil {
+		return nil, err
+	}
+	return &f, nil
+}
+
 // ---------- User Fills ----------
 
 func (s *Store) CreateUserFill(ctx context.Context, uf *models.UserFill) (*models.UserFill, error) {
@@ -90,4 +106,22 @@ func (s *Store) CreateMetric(ctx context.Context, m *models.Metric) (*models.Met
 		return nil, err
 	}
 	return m, nil
+}
+
+//  ---------- Listing ----------
+
+func (s *Store) ListUserFillsByUserID(ctx context.Context, userID uuid.UUID) ([]models.UserFill, error) {
+	var fills []models.UserFill
+	if err := s.DB.WithContext(ctx).Where("user_id = ?", userID).Find(&fills).Error; err != nil {
+		return nil, err
+	}
+	return fills, nil
+}
+
+func (s *Store) ListMetricsByUserID(ctx context.Context, userID uuid.UUID) ([]models.Metric, error) {
+	var metrics []models.Metric
+	if err := s.DB.WithContext(ctx).Where("user_id = ?", userID).Find(&metrics).Error; err != nil {
+		return nil, err
+	}
+	return metrics, nil
 }
