@@ -17,13 +17,25 @@ import (
 
 func newTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+
+	// Open SQLite in-memory DB with UTC NowFunc
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
+		NowFunc: func() time.Time { return time.Now().UTC() },
+	})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
+
+	sqlDB, _ := db.DB()
+	sqlDB.Exec("PRAGMA foreign_keys = ON;")
+	sqlDB.Exec("PRAGMA busy_timeout = 5000;")
+
+	db.Exec("CREATE TABLE IF NOT EXISTS __type_alias_fix (ts timestamptz);")
+
 	if err := db.AutoMigrate(&models.User{}, &models.UserFill{}, &models.Metric{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
+
 	return db
 }
 
@@ -364,11 +376,13 @@ func TestDeleteUser(t *testing.T) {
 
 	// 🧩 Seed a user fill tied to that user
 	fill := models.UserFill{
-		ID:     uuid.New(),
-		UserID: idTest,
-		Symbol: "AAPL",
-		Price:  180.5,
-		Side:   "buy",
+		ID:        uuid.New(),
+		UserID:    idTest,
+		Symbol:    "AAPL",
+		Price:     180.5,
+		Side:      "buy",
+		Mode:      "Analyze",
+		Timestamp: time.Now().UTC(),
 	}
 	if _, err := store.CreateUserFill(ctx, &fill); err != nil {
 		t.Fatalf("seed CreateUserFill: %v", err)
@@ -376,9 +390,14 @@ func TestDeleteUser(t *testing.T) {
 
 	// 🧩 Seed a metric tied to that user fill (not directly to user)
 	metric := models.Metric{
-		ID:         uuid.New(),
-		UserFillID: fill.ID,
-		VwapSlippage: 0.1,
+		ID:              uuid.New(),
+		UserFillID:      fill.ID,
+		VwapSlippage:    0.1,
+		Shortfall:       0.02,
+		EffectiveSpread: 0.01,
+		RealizedSpread:  0.005,
+		MarketImpact:    0.03,
+		Drift:           0.01,
 	}
 	if _, err := store.CreateMetric(ctx, &metric); err != nil {
 		t.Fatalf("seed CreateMetric: %v", err)
@@ -455,4 +474,3 @@ func TestDeleteUser(t *testing.T) {
 		})
 	}
 }
-

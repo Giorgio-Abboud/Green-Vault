@@ -67,11 +67,11 @@ func (s *Store) UpdateUser(ctx context.Context, u *models.User) (*models.User, e
 	return u, nil
 }
 
-func (s *Store) DeleteUser(ctx context.Context, id uuid.UUID) (*models.UserFill, error) {
+func (s *Store) DeleteUser(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	if id == uuid.Nil {
 		return nil, errors.New("id required")
 	}
-	var f models.UserFill
+	var f models.User
 	result := s.DB.WithContext(ctx).First(&f, "id = ?", id)
 	if result.Error != nil {
 		return nil, result.Error
@@ -81,8 +81,6 @@ func (s *Store) DeleteUser(ctx context.Context, id uuid.UUID) (*models.UserFill,
 	}
 	return &f, nil
 }
-
-
 
 // ---------- User Fills ----------
 
@@ -96,7 +94,6 @@ func (s *Store) CreateUserFill(ctx context.Context, uf *models.UserFill) (*model
 	}
 	return uf, nil
 }
-
 
 // ---------- Metrics ----------
 

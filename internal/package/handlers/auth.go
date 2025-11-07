@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -386,7 +387,7 @@ func DeleteUser(app *App) http.HandlerFunc {
 		}
 
 		// Delete the user from the database
-		_, err := app.Store.DeleteUser(r.Context(), uid)
+		u, err := app.Store.DeleteUser(r.Context(), uid)
 		if err != nil {
 			WriteError(w, http.StatusInternalServerError, &Options{
 				Error:     err.Error(),
@@ -399,13 +400,15 @@ func DeleteUser(app *App) http.HandlerFunc {
 		app.clearSession(w)
 
 		// Send confirmation response
-		WriteJSON(w, http.StatusOK, &Options{
+		WriteJSON(w, http.StatusNoContent, &Options{
 			Data: map[string]any{
-				"message": "account deleted successfully",
-				"user_id": uid,
+				"message":    "account deleted successfully",
+				"user_id":    uid,
+				"name":       u.Name,
+				"email":      u.Email,
+				"deleted_at": time.Now().UTC(),
 			},
 			RequestID: reqID,
 		})
 	}
 }
-

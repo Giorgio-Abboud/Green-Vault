@@ -395,7 +395,7 @@ func TestDeleteUser(t *testing.T) {
 		{
 			name:       "valid delete",
 			authUserID: u.ID,
-			wantStatus: http.StatusOK,
+			wantStatus: http.StatusNoContent,
 			wantOK:     true,
 		},
 	}
