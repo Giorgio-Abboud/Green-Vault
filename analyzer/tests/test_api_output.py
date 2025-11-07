@@ -107,3 +107,44 @@ def test_volume_integer_nonnegative(sample_bars_df):
 def test_no_missing_required_values(sample_bars_df):
     req = ["start", "end", "open", "high", "low", "close", "volume"]
     assert not sample_bars_df[req].isna().any().any()
+
+def test_start_column_is_datetime_with_tz(sample_bars_df):
+    # ensure dtype is datetime with timezone
+    assert pd.api.types.is_datetime64tz_dtype(sample_bars_df["start"])
+
+
+def test_dataframe_index_is_reset(sample_bars_df):
+    # Ensure typical consumer expectation: RangeIndex after reset
+    df = sample_bars_df.reset_index(drop=True)
+    assert isinstance(df.index, pd.RangeIndex)
+    assert list(df.index) == list(range(len(df)))
+
+
+def test_empty_dict_payload_raises():
+    with pytest.raises(HTTPException) as exc:
+        validateAPI.validate_twelvedata_output({})
+    assert exc.value.status_code == 500
+
+def test_data_recency_check_raises():
+    # build a df with an extremely old timestamp
+    old_start = pd.Timestamp(datetime.now(tz=TZ) - timedelta(days=365 * 30)).tz_convert(TZ)
+    starts = pd.date_range(start=old_start, periods=2, freq="1T", tz=TZ)
+    ends = starts + pd.Timedelta(minutes=1)
+    df = pd.DataFrame({
+        "start": starts,
+        "end": ends,
+        "open": [1.0, 1.0],
+        "high": [1.0, 1.0],
+        "low": [1.0, 1.0],
+        "close": [1.0, 1.0],
+        "volume": [0, 0],
+    })
+    with pytest.raises(HTTPException) as exc:
+        validateAPI.validate_twelvedata_output(df, max_age_days=365*5)  # 5 years max -> should fail for 30y old
+    assert exc.value.status_code == 500
+
+
+def test_excessive_api_calls_raises(sample_bars_df):
+    with pytest.raises(HTTPException) as exc:
+        validateAPI.validate_twelvedata_output(sample_bars_df, api_call_count=101, max_api_calls=100)
+    assert exc.value.status_code == 500
