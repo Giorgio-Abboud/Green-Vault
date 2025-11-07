@@ -4,7 +4,7 @@ import { apiPut } from "../api";
 import { useAuth } from "../auth";
 
 export default function EditProfile() {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -185,7 +185,8 @@ export default function EditProfile() {
                     });
                     if (res.ok) {
                       setMsg("✅ Account deleted successfully");
-                      setTimeout(() => navigate("/"), 1500);
+                      await refresh();
+                      navigate("/");
                     } else {
                       const text = await res.text();
                       setMsg(`❌ Failed (HTTP ${res.status}): ${text || res.statusText}`);
