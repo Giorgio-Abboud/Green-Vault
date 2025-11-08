@@ -106,8 +106,6 @@ def analyze(timestamp: datetime, price: str, quantity: str, side: str, symbol: s
             window_end,
         )
         return {
-            # "trade_vwap": float("nan"),
-            # "market_vwap": float("nan"),
             "vwap_slippage_bps": float("nan"),
             "effective_spread_bps": float("nan"),
             "realized_spread_1m_bps": float("nan"),
@@ -152,6 +150,16 @@ def estimate(timestamp: str, price: str, quantity: str, side: str, symbol: str) 
         "drift": 0.4,
     }
 
+def convert_timezone(timestamp: datetime, timezone: str) -> datetime:
+    NY = ZoneInfo("America/New_York")
+    user_zone = ZoneInfo(timezone)
+    if timestamp.tzinfo is None:
+        aware_ts = timestamp.replace(tzinfo=user_zone)
+    else:
+        aware_ts = timestamp.astimezone(user_zone)
+    return aware_ts.astimezone(NY)
+
+
 def make_calculation(
     *,
     timestamp: datetime,
@@ -162,6 +170,7 @@ def make_calculation(
     mode: str,
 ) -> Tuple[bool, str, Dict, Dict]:
     logging.info("make_calculation called (mode=%s)", mode)
+
     fills = {
         "timestamp": timestamp,
         "price": price,

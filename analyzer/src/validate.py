@@ -2,7 +2,7 @@ from datetime import datetime, time, date
 from decimal import Decimal, InvalidOperation
 from fastapi import HTTPException, status
 import holidays, uuid, re
-from src.twelve_client import check_symbol
+from .twelve_client import check_symbol
 
 def validate_user_fills(timestamp: datetime, price: float, quantity: int, side: str, symbol: str) -> dict:
     field_errors = {}
@@ -11,13 +11,13 @@ def validate_user_fills(timestamp: datetime, price: float, quantity: int, side: 
         r"^\d{4}-\d{2}-\d{2}T"
         r"\d{2}:\d{2}:\d{2}"
         r"(?:\.\d+)?"
-        r"(?:Z|[+-]\d{2}:\d{2})$"
+        r"-04:00$"
     )
     us_holidays = holidays.country_holidays('US')
 
     if not RFC3339_RE.match(timestamp.isoformat()):
-        field_errors["timestamp"] = "Inputted timestamp must be of RFC3339 format."
-    elif timestamp.time() < time(9, 30) or timestamp.time() > time(16):
+        field_errors["timestamp"] = "Inputted timestamp must be RFC3339 with a -04:00 offset."
+    elif timestamp.time() < time(10, 30) or timestamp.time() > time(17):
         field_errors["timestamp"] = "Inputted timestamp cannot be before 9:30 AM or after 4:00 PM."
     elif timestamp.weekday() >= 5:
         field_errors["timestamp"] = "Inputted timestamp cannot be on a weekend."

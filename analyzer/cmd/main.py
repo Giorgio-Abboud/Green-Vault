@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Literal, Annotated
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
@@ -62,13 +62,23 @@ class CalcOut(BaseModel):
     fills: Fill
     metrics: Metric
 
+EST_OFFSET = timedelta(hours=-4)
+EST_TZINFO = timezone(EST_OFFSET, name="EST")
+
+def overwrite_offset(ts: datetime) -> datetime:
+    if ts.utcoffset() != EST_OFFSET:
+        return ts.replace(tzinfo=EST_TZINFO)
+    return ts
 
 # -------------------- Endpoint --------------------
 @app.post("/calculate", response_model=CalcOut)
 def calculate(body: CalcIn):
     logging.info("Received /calculate")
     try:
-        # Map request -> normalized mode
+        logging.info(body.timestamp)
+        timestamp = overwrite_offset(body.timestamp)
+        logging.info(timestamp)
+
         req = (body.request or "").strip().lower()
         if req == "analyze":
             mode = "analyze"
@@ -77,20 +87,20 @@ def calculate(body: CalcIn):
         else:
             logging.warning("Unknown request %r; defaulting to analyze", body.request)
             mode = "analyze"
-
+        
         try:
             validate_user_fills(
-                timestamp=body.timestamp,
+                timestamp=timestamp,
                 price=body.price,
                 quantity=body.quantity,
                 side=body.side,
-                symbol=body.symbol
+                symbol=body.symbol,
             )
         except HTTPException as validate_fail:
             return JSONResponse(content=validate_fail.detail, status_code=validate_fail.status_code)
 
         ok, req_id, fills, metrics = make_calculation(
-            timestamp=body.timestamp,
+            timestamp=timestamp,
             price=body.price,
             quantity=body.quantity,
             side=body.side,
