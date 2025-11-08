@@ -32,6 +32,28 @@ export default function Calculate() {
   const badgeMode =
     "inline-flex items-center gap-2 rounded-md border border-brand-border bg-brand-card/80 px-2.5 py-1 text-xs text-gray-300";
 
+  const EST_OFFSET = "-04:00";
+
+  function buildEstIsoFromLocal(value) {
+    if (!value) throw new Error("Timestamp required");
+    const trimmed = value.trim();
+    const [datePart, rawTime] = trimmed.split("T");
+    if (!datePart || !rawTime) throw new Error("Invalid datetime");
+
+    let timePart = rawTime.replace(/(Z|[+-].*)$/, "");
+    if (timePart.includes(".")) {
+      timePart = timePart.split(".")[0];
+    }
+
+    const segments = timePart.split(":");
+    if (segments.length < 2) throw new Error("Invalid time");
+    while (segments.length < 3) {
+      segments.push("00");
+    }
+    const normalizedTime = segments.slice(0, 3).map((seg) => seg.padStart(2, "0")).join(":");
+    return `${datePart}T${normalizedTime}${EST_OFFSET}`;
+  }
+
   function parseApiError(err) {
     let status = err?.status ?? err?.response?.status ?? null;
     let data = err?.data ?? err?.response?.data ?? undefined;
@@ -76,7 +98,7 @@ export default function Calculate() {
       return;
     }
     try {
-      const tsIso = new Date(timestamp).toISOString().replace(/\.\d{3}Z$/, "Z");
+      const tsIso = buildEstIsoFromLocal(timestamp);
       const payload = {
         timestamp: tsIso,
         price: nPrice,
@@ -120,8 +142,8 @@ export default function Calculate() {
     const fe = {};
     let tsIso = "";
     try {
-      tsIso = new Date(timestamp).toISOString().replace(/\.\d{3}Z$/, "Z");
-    } catch { fe.timestamp = "must be valid RFC3339 datetime (e.g. 2025-10-12T14:00:00Z)"; }
+      tsIso = buildEstIsoFromLocal(timestamp);
+    } catch { fe.timestamp = "must be valid RFC3339 datetime (e.g. 2025-10-12T14:00:00-04:00)"; }
 
     const nPrice = Number.parseFloat(price);
     if (!Number.isFinite(nPrice) || nPrice <= 0) fe.price = "must be a positive number";
