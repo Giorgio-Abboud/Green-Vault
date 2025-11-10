@@ -5,6 +5,7 @@ internal/.env.docker
 internal/.env.local
 .env
 ui/.env
+.env.db
 analyzer/__pycache__
 analyzer/cmd/__pycache__
 analyzer/src/__pycache__

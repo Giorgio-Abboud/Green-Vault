@@ -5,7 +5,8 @@ Capstone II Project
 Green-Vault is a full-stack system composed of three interconnected services:
 - **UI (React + Vite)** → user interface for signup, login, and running analyses  
 - **Analyzer (FastAPI, Python)** → performs trade analysis and returns metrics  
-- **Internal API (Go + GORM + Postgres)** → handles authentication, database storage, and data retrieval  
+- **Internal API (Go + GORM)** → handles all authentication, http layer, and db layer
+- **Postgres DB and Volume** → database storage and data retrieval
 
 Each service runs in its own Docker container, communicating over HTTP inside the Docker network.  
 All data is persisted in your local PostgreSQL database.
@@ -15,17 +16,26 @@ All data is persisted in your local PostgreSQL database.
 ## Requirements
 - Install **Docker**
 - Install **Docker Compose plugin**
-- Have **PostgreSQL** installed and running locally
 
 ---
 
 ## Environment Files and Postgres Configuration
 
+### Postgres DB, if using containerized postgres (`/.env.db`)
+Create this file:
+```
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD={password}
+POSTGRES_DB=greenvault
+```
+Setup any password. The postgres instance will automatically create you account with the provided user, password, and db name.
+
 ### Internal Service (`internal/.env.docker`)
 Create this file:
 ```
+DB_URL=postgres://username:password@db:5432/dbname?sslmode=disable
 # Connect from container to your host's Postgres
-DB_URL=postgres://username:password@host.docker.internal:5432/dbname?sslmode=disable
+# DB_URL=postgres://username:password@host.docker.internal:5432/dbname?sslmode=disable
 
 JWT_SECRET=change-me
 ```
@@ -38,7 +48,7 @@ JWT_SECRET=change-me
 ```
 
 ### Update `DB_URL` with valid auth
-* Update ```username```, ```password```, and ```dbname``` to your actual credentials
+* Update ```username```, ```password```, and ```dbname``` to the credentials of the postgres container OR your actual credentials if accessing in your host machine.
 
 ### Update `JWT_SECRET` with a unique value
 * Make sure you have ```openssl``` installed. Linux and Mac users already have it. Windows users can run ```openssl``` using ````wsl```
@@ -85,6 +95,16 @@ listen_addresses = '*'
 host all all {subnet_docker_network} md5
 ```
 - Restart PostgreSQL
+
+### Postgres DB Container
+Run this to access postgres db (only after docker compose up):
+```
+docker exec -it postgres-db psql -U postgres -d greenvault
+```
+OR
+```
+psql -h localhost -p 5433 -U postgres -d greenvault
+```
 
 ## Architecture Summary
 
