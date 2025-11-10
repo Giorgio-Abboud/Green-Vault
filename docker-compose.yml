@@ -3,9 +3,8 @@ services:
     build: ./ui
     image: green-vault-ui
     ports: ["5173:5173"]
-    environment:
-      - VITE_CALC_BASE_URL=http://localhost:8000   # FastAPI
-      - VITE_API_BASE_URL=http://localhost:8080    # Go API
+    env_file:
+      - ./ui/.env
     depends_on:
       analyzer:
         condition: service_started
@@ -19,6 +18,9 @@ services:
     restart: unless-stopped
     env_file:
       - ./analyzer/.env
+    depends_on:
+      db:
+        condition: service_healthy
 
   internal:
     build: ./internal
@@ -26,9 +28,27 @@ services:
     command: ["/app/server-api"]
     env_file:
       - ./internal/.env.docker
-    environment:
-      - API_PORT=8080
-    extra_hosts:
-      - "host.docker.internal:host-gateway"  # reach host Postgres
     ports: ["8080:8080"]
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: cgr.dev/chainguard/postgres:latest
+    container_name: postgres-db
+    restart: unless-stopped
+    env_file:
+      - .env.db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
