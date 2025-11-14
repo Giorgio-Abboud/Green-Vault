@@ -501,6 +501,7 @@ func TestListUserMetrics(t *testing.T) {
 
     for _, tc := range tests {
         t.Run(tc.name, func(t *testing.T) {
+
             req := httptest.NewRequest("GET", "/v1/metrics/me", nil)
             req = withUser(req, tc.userID)
 
@@ -518,18 +519,23 @@ func TestListUserMetrics(t *testing.T) {
                     res.Ok, tc.wantOK, rr.Body.String())
             }
 
-            // SUCCESS CASE
+            // --- SUCCESS CASE ---
             if tc.name == "valid: has metrics" {
 
-                // res.Data is ALREADY map[string]any — no type assertion
                 data := res.Data
 
-                // Validate user_id field
-                if data["user_id"] != u.ID {
-                    t.Fatalf("user_id mismatch: got %v want %v", data["user_id"], u.ID)
+                // user_id comes back as a string
+                uidStr, ok := data["user_id"].(string)
+                if !ok {
+                    t.Fatalf("user_id is not a string, got %T", data["user_id"])
                 }
 
-                // Validate metrics array
+                if uidStr != u.ID.String() {
+                    t.Fatalf("user_id mismatch: got %v want %v",
+                        uidStr, u.ID.String())
+                }
+
+                // metrics must be an array
                 metricsRaw, ok := data["metrics"].([]any)
                 if !ok {
                     t.Fatalf("metrics is not an array, got %T", data["metrics"])
@@ -542,4 +548,3 @@ func TestListUserMetrics(t *testing.T) {
         })
     }
 }
-
