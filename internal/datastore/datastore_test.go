@@ -474,3 +474,134 @@ func TestDeleteUser(t *testing.T) {
 		})
 	}
 }
+
+func TestListMetricsByStocks(t *testing.T) {
+	store := newStore(t)
+	ctx := context.Background()
+
+	// seed user + fill
+	u := models.User{
+		ID:           uuid.New(),
+		Email:        "metricfilter@example.com",
+		Name:         "Met",
+		LastName:     "Ric",
+		PasswordHash: "hashed",
+	}
+	if _, err := store.CreateUser(ctx, &u); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	// seed fills (TSLA, AAPL, ABC)
+	fills := []models.UserFill{
+		{
+			ID:        uuid.New(),
+			UserID:    u.ID,
+			Symbol:    "TSLA",
+			Timestamp: time.Now().UTC(),
+			Price:     100,
+			Side:      "buy",
+			Quantity:  1,
+			Mode:      "Estimate",
+			Result:    "SUCCESS",
+		},
+		{
+			ID:        uuid.New(),
+			UserID:    u.ID,
+			Symbol:    "AAPL",
+			Timestamp: time.Now().UTC(),
+			Price:     200,
+			Side:      "sell",
+			Quantity:  2,
+			Mode:      "Estimate",
+			Result:    "SUCCESS",
+		},
+		{
+			ID:        uuid.New(),
+			UserID:    u.ID,
+			Symbol:    "ABC",
+			Timestamp: time.Now().UTC(),
+			Price:     300,
+			Side:      "buy",
+			Quantity:  3,
+			Mode:      "Estimate",
+			Result:    "SUCCESS",
+		},
+	}
+
+	for _, f := range fills {
+		if _, err := store.CreateUserFill(ctx, &f); err != nil {
+			t.Fatalf("seed fill: %v", err)
+		}
+	}
+
+	// seed metrics linked to fills
+	metrics := []models.Metric{
+		{
+			ID:              uuid.New(),
+			UserFillID:      fills[0].ID,
+			VwapSlippage:    0.1,
+			Shortfall:       0.01,
+			EffectiveSpread: 0.02,
+		},
+		{
+			ID:              uuid.New(),
+			UserFillID:      fills[1].ID,
+			VwapSlippage:    0.2,
+			Shortfall:       0.03,
+			EffectiveSpread: 0.01,
+		},
+		{
+			ID:              uuid.New(),
+			UserFillID:      fills[2].ID,
+			VwapSlippage:    0.3,
+			Shortfall:       0.04,
+			EffectiveSpread: 0.02,
+		},
+	}
+
+	for _, m := range metrics {
+		if _, err := store.CreateMetric(ctx, &m); err != nil {
+			t.Fatalf("seed metric: %v", err)
+		}
+	}
+
+	// table-driven tests like yours
+	for _, tc := range []struct {
+		name        string
+		symbols     []string
+		wantCount   int
+	}{
+		{
+			name:      "one symbol (TSLA)",
+			symbols:   []string{"TSLA"},
+			wantCount: 1,
+		},
+		{
+			name:      "two symbols",
+			symbols:   []string{"TSLA", "AAPL"},
+			wantCount: 2,
+		},
+		{
+			name:      "three symbols",
+			symbols:   []string{"TSLA", "AAPL", "ABC"},
+			wantCount: 3,
+		},
+		{
+			name:      "zero matches",
+			symbols:   []string{"MSFT"},
+			wantCount: 0,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := store.ListMetricsByStocks(ctx, u.ID, tc.symbols)
+			if err != nil {
+				t.Fatalf("ListMetricsByStocks err=%v", err)
+			}
+
+			if len(got) != tc.wantCount {
+				t.Fatalf("want %d metrics, got %d", tc.wantCount, len(got))
+			}
+		})
+	}
+}
+

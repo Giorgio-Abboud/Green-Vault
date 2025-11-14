@@ -125,3 +125,17 @@ func (s *Store) ListMetricsByUserID(ctx context.Context, userID uuid.UUID) ([]mo
 	}
 	return metrics, nil
 }
+
+func (s *Store) ListMetricsByStocks(ctx context.Context,userID uuid.UUID,symbols []string,) ([]models.Metric, error) {
+    var metrics []models.Metric
+    if err := s.DB.WithContext(ctx).
+        Joins("JOIN user_fills ON user_fills.id = metrics.user_fill_id").
+        Where("user_fills.user_id = ?", userID).
+        Where("user_fills.symbol IN ?", symbols).
+        Find(&metrics).Error; err != nil {
+        return nil, err
+    }
+
+    return metrics, nil
+}
+
