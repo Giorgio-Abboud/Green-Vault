@@ -254,3 +254,31 @@ func (f *fakeStore) ListMetricsByUserID(_ context.Context, userID uuid.UUID) ([]
 	return metrics, nil
 }
 
+func (f *fakeStore) FilterMetricsBySymbol( _ context.Context,userID uuid.UUID, symbol string,) ([]models.Metric, error) {
+
+    f.mu.Lock()
+    defer f.mu.Unlock()
+
+    if userID == uuid.Nil {
+        return nil, errors.New("invalid user id")
+    }
+
+    // Find all UserFill IDs belonging to this user **and matching the symbol**
+    userFillIDs := make(map[uuid.UUID]struct{})
+    for _, fill := range f.fills {
+        if fill.UserID == userID && fill.Symbol == symbol {
+            userFillIDs[fill.ID] = struct{}{}
+        }
+    }
+
+    // Collect all metrics linked to those fills
+    var metrics []models.Metric
+    for _, m := range f.metrics {
+        if _, ok := userFillIDs[m.UserFillID]; ok {
+            metrics = append(metrics, m)
+        }
+    }
+
+    return metrics, nil
+}
+

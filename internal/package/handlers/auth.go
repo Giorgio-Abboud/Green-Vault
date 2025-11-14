@@ -451,7 +451,7 @@ func FilterMetricsBySymbol(app *App) http.HandlerFunc {
             return
         }
 
-        metrics, err := app.Store.ListMetricsByStocks(r.Context(), uid, body.Symbol)
+        metrics, err := app.Store.FilterMetricsBySymbol(r.Context(), uid, body.Symbol)
         if err != nil {
             WriteError(w, http.StatusInternalServerError, &Options{
                 Error:     "failed to retrieve metrics",
@@ -469,4 +469,6 @@ func FilterMetricsBySymbol(app *App) http.HandlerFunc {
         })
     }
 }
+
+
 
