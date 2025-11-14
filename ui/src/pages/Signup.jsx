@@ -30,19 +30,50 @@ export default function Signup() {
     return errs.length ? `Must include ${errs.join(", ")}` : "";
   }
 
+  // helper to render either string or array error as text
+  function renderError(err) {
+    if (!err) return null;
+    if (Array.isArray(err)) return err.join(", ");
+    return err;
+  }
+
   async function submit(e) {
     e.preventDefault();
     setMsg("");
     setFieldErrors({});
 
     const localErrors = {};
+
+    // --- email checks ---
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      localErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      localErrors.email = "Invalid email format";
+    }
+
+    // --- name checks ---
+    if (!name.trim()) {
+      localErrors.name = "First name is required";
+    }
+
+    if (!lastName.trim()) {
+      localErrors.last_name = "Last name is required";
+    }
+
+    // --- password checks ---
     const pwErr = pwReqError(password);
     if (pwErr) localErrors.password = pwErr;
-    if (password !== confirmPassword) localErrors.confirm_password = "Passwords do not match";
+
+    if (password !== confirmPassword) {
+      localErrors.confirm_password = "Passwords do not match";
+    }
 
     if (Object.keys(localErrors).length) {
       setFieldErrors(localErrors);
-      setMsg("❌ The information you entered doesn’t meet the requirements. Please fix the highlighted fields.");
+      setMsg(
+        "❌ The information you entered doesn’t meet the requirements. Please fix the highlighted fields."
+      );
       const order = ["email", "name", "last_name", "password", "confirm_password"];
       const first = order.find((k) => localErrors[k]);
       if (first) {
@@ -55,7 +86,7 @@ export default function Signup() {
 
     try {
       await apiPost("/v1/users", {
-        email,
+        email: trimmedEmail,
         name,
         last_name: lastName,
         password,
@@ -71,13 +102,25 @@ export default function Signup() {
         if (m) {
           status = Number(m[1]);
           const bodyStr = m[2];
-          try { data = JSON.parse(bodyStr); } catch { data = { error: bodyStr }; }
+          try {
+            data = JSON.parse(bodyStr);
+          } catch {
+            data = { error: bodyStr };
+          }
         } else {
-          try { data = JSON.parse(raw); } catch { data = { error: raw }; }
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = { error: raw };
+          }
         }
       }
       if (typeof data === "string") {
-        try { data = JSON.parse(data); } catch { data = { error: data }; }
+        try {
+          data = JSON.parse(data);
+        } catch {
+          data = { error: data };
+        }
       }
 
       if (status === 422 && data && typeof data === "object") {
@@ -89,7 +132,9 @@ export default function Signup() {
           password: fe.password,
           confirm_password: fe.confirm_password,
         });
-        setMsg("❌ The information you entered doesn’t meet the requirements. Please fix the highlighted fields.");
+        setMsg(
+          "❌ The information you entered doesn’t meet the requirements. Please fix the highlighted fields."
+        );
         return;
       }
 
@@ -115,6 +160,7 @@ export default function Signup() {
           <h2 className="text-xl font-semibold tracking-tight mb-4">Sign up</h2>
 
           <form onSubmit={submit} className="space-y-4">
+            {/* EMAIL */}
             <div>
               <label className={labelCls}>Email</label>
               <input
@@ -122,12 +168,17 @@ export default function Signup() {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
                 type="email"
                 name="email"
               />
+              {fieldErrors.email && (
+                <p className="mt-1 text-xs text-red-400">
+                  {renderError(fieldErrors.email)}
+                </p>
+              )}
             </div>
 
+            {/* NAME / LAST NAME */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={labelCls}>First name</label>
@@ -136,9 +187,13 @@ export default function Signup() {
                   placeholder="First name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  required
                   name="name"
                 />
+                {fieldErrors.name && (
+                  <p className="mt-1 text-xs text-red-400">
+                    {renderError(fieldErrors.name)}
+                  </p>
+                )}
               </div>
               <div>
                 <label className={labelCls}>Last name</label>
@@ -147,12 +202,17 @@ export default function Signup() {
                   placeholder="Last name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  required
                   name="last_name"
                 />
+                {fieldErrors.last_name && (
+                  <p className="mt-1 text-xs text-red-400">
+                    {renderError(fieldErrors.last_name)}
+                  </p>
+                )}
               </div>
             </div>
 
+            {/* PASSWORD */}
             <div className="relative">
               <div className="flex items-center gap-2">
                 <label className={labelCls}>Password</label>
@@ -178,14 +238,16 @@ export default function Signup() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
                 name="password"
               />
               {fieldErrors.password && (
-                <p className="mt-1 text-xs text-red-400">{fieldErrors.password}</p>
+                <p className="mt-1 text-xs text-red-400">
+                  {renderError(fieldErrors.password)}
+                </p>
               )}
             </div>
 
+            {/* CONFIRM PASSWORD */}
             <div>
               <label className={labelCls}>Confirm password</label>
               <input
@@ -194,11 +256,12 @@ export default function Signup() {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                required
                 name="confirm_password"
               />
               {fieldErrors.confirm_password && (
-                <p className="mt-1 text-xs text-red-400">{fieldErrors.confirm_password}</p>
+                <p className="mt-1 text-xs text-red-400">
+                  {renderError(fieldErrors.confirm_password)}
+                </p>
               )}
             </div>
 

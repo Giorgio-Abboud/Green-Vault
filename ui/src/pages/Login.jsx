@@ -19,13 +19,47 @@ export default function Login() {
   const btn =
     "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium bg-brand-accent text-black hover:brightness-110 transition shadow-soft";
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function renderError(err) {
+    if (!err) return null;
+    if (typeof err === "boolean") return "Invalid value";
+    if (Array.isArray(err)) return err.join(", ");
+    return err;
+  }
+
   async function submit(e) {
     e.preventDefault();
     setMsg("");
     setFieldErrors({});
 
+    // ---------- CLIENT-SIDE VALIDATION ----------
+    const localErrors = {};
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      localErrors.email = "Email is required";
+    } else if (!emailRegex.test(trimmedEmail)) {
+      localErrors.email = "Invalid email format";
+    }
+
+    if (!password) {
+      localErrors.password = "Password is required";
+    }
+
+    if (Object.keys(localErrors).length) {
+      setFieldErrors(localErrors);
+      setMsg("❌ Please fix the highlighted fields.");
+      const first = localErrors.email ? "email" : "password";
+      requestAnimationFrame(() => {
+        document.querySelector(`input[name="${first}"]`)?.focus();
+      });
+      return;
+    }
+
+    // ---------- API CALL ----------
     try {
-      await apiPost("/v1/login", { email, password });
+      await apiPost("/v1/login", { email: trimmedEmail, password });
       await refresh();
       setMsg("✅ logged in");
     } catch (err) {
@@ -41,7 +75,6 @@ export default function Login() {
 
       if (!data && (typeof err === "string" || typeof err?.message === "string")) {
         const raw = String(typeof err === "string" ? err : err.message).trim();
-
         const m = raw.match(/^(\d{3})\s+(.+)$/);
         if (m) {
           status = Number(m[1]);
@@ -105,6 +138,7 @@ export default function Login() {
       <div className="mx-auto max-w-md px-4 py-10">
         <form
           onSubmit={submit}
+          noValidate   // <-- disables browser tooltip validation
           className="space-y-4 rounded-xl2 border border-brand-border bg-brand-card p-6 shadow-soft"
         >
           <h2 className="text-xl font-semibold tracking-tight">Log in</h2>
@@ -116,10 +150,14 @@ export default function Login() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
               type="email"
               name="email"
             />
+            {fieldErrors.email && (
+              <p className="mt-1 text-xs text-red-400">
+                {renderError(fieldErrors.email)}
+              </p>
+            )}
           </div>
 
           <div>
@@ -130,9 +168,13 @@ export default function Login() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
               name="password"
             />
+            {fieldErrors.password && (
+              <p className="mt-1 text-xs text-red-400">
+                {renderError(fieldErrors.password)}
+              </p>
+            )}
           </div>
 
           <button type="submit" className={btn}>
