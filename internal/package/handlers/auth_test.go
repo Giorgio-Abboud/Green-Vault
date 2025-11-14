@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time" 
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -429,3 +430,156 @@ func TestDeleteUser(t *testing.T) {
 		})
 	}
 }
+
+func TestFilterMetricsBySymbol(t *testing.T) {
+    app := newTestApp(t)
+
+    // seed user
+    u, err := app.Store.CreateUser(context.Background(), &models.User{
+        ID:           uuid.New(),
+        Email:        "metricseed@example.com",
+        Name:         "Seed",
+        LastName:     "User",
+        PasswordHash: "hashed",
+    })
+    if err != nil {
+        t.Fatalf("seed user: %v", err)
+    }
+
+    // seed fills + metrics
+    fill := models.UserFill{
+        ID:        uuid.New(),
+        UserID:    u.ID,
+        Symbol:    "TSLA",
+        Timestamp: time.Now().UTC(), // <-- fixed: time.Now not Time.Now
+        Price:     100.0,
+        Side:      "buy",
+        Quantity:  10,
+        Mode:      "Estimate",
+        Result:    "SUCCESS",
+    }
+    if _, err := app.Store.CreateUserFill(context.Background(), &fill); err != nil {
+        t.Fatalf("seed fill: %v", err)
+    }
+
+    metric := models.Metric{
+        ID:              uuid.New(),
+        UserFillID:      fill.ID,
+        VwapSlippage:    0.1,
+        Shortfall:       0.01,
+        EffectiveSpread: 0.02,
+        RealizedSpread:  0.03,
+        MarketImpact:    0.04,
+        Drift:           0.05,
+    }
+    if _, err := app.Store.CreateMetric(context.Background(), &metric); err != nil {
+        t.Fatalf("seed metric: %v", err)
+    }
+
+    tests := []struct {
+        name       string
+        bodyJSON   map[string]any
+        userID     uuid.UUID
+        wantStatus int
+        wantOK     bool
+    }{
+        {
+            name: "missing symbol",
+            bodyJSON: map[string]any{
+                "symbol": "",
+            },
+            userID:     u.ID,
+            wantStatus: http.StatusUnprocessableEntity,
+            wantOK:     false,
+        },
+        {
+            name: "symbol too long",
+            bodyJSON: map[string]any{
+                "symbol": "ABCDEFGHIJK",
+            },
+            userID:     u.ID,
+            wantStatus: http.StatusUnprocessableEntity,
+            wantOK:     false,
+        },
+        {
+            name: "unauthorized",
+            bodyJSON: map[string]any{
+                "symbol": "TSLA",
+            },
+            userID:     uuid.Nil,
+            wantStatus: http.StatusUnauthorized,
+            wantOK:     false,
+        },
+        {
+            name: "valid symbol",
+            bodyJSON: map[string]any{
+                "symbol": "TSLA",
+            },
+            userID:     u.ID,
+            wantStatus: http.StatusOK,
+            wantOK:     true,
+        },
+        {
+            name: "no metrics for symbol",
+            bodyJSON: map[string]any{
+                "symbol": "AMZN",
+            },
+            userID:     u.ID,
+            wantStatus: http.StatusOK,
+            wantOK:     true,
+        },
+    }
+
+    for _, tc := range tests {
+        t.Run(tc.name, func(t *testing.T) {
+
+            req := httptest.NewRequest("POST", "/v1/metrics/filter", mustJSONBody(t, tc.bodyJSON))
+            req.Header.Set("Content-Type", "application/json")
+            req = withUser(req, tc.userID)
+
+            rr := httptest.NewRecorder()
+            FilterMetricsBySymbol(app).ServeHTTP(rr, req)
+
+            if rr.Code != tc.wantStatus {
+                t.Fatalf("status = %d; want %d. body=%s",
+                    rr.Code, tc.wantStatus, rr.Body.String())
+            }
+
+            res := decodeStdResp(t, rr)
+            if res.Ok != tc.wantOK {
+                t.Fatalf("ok = %v; want %v. body=%s",
+                    res.Ok, tc.wantOK, rr.Body.String())
+            }
+
+            // validate returned data only for successful case
+            if tc.name == "valid symbol" {
+                data := res.Data // already map[string]any
+
+                // symbol must be present and correct
+                if sym, ok := data["symbol"].(string); !ok || sym != "TSLA" {
+                    t.Fatalf("got symbol %v; want TSLA", data["symbol"])
+                }
+
+                // metrics field exists and is an array
+                metricsAny, ok := data["metrics"]
+                if !ok {
+                    t.Fatalf("missing metrics field")
+                }
+
+                switch metrics := metricsAny.(type) {
+                case []any:
+                    if len(metrics) == 0 {
+                        t.Fatalf("expected metrics for TSLA, got none")
+                    }
+                case []map[string]any:
+                    if len(metrics) == 0 {
+                        t.Fatalf("expected metrics for TSLA, got none")
+                    }
+                default:
+                    t.Fatalf("metrics field has unexpected type: %T", metricsAny)
+                }
+            }
+        })
+    }
+}
+

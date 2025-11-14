@@ -412,3 +412,61 @@ func DeleteUser(app *App) http.HandlerFunc {
 		})
 	}
 }
+
+func FilterMetricsBySymbol(app *App) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        reqID := uuid.NewString()
+
+        type in struct {
+            Symbol string `json:"symbol"`
+        }
+
+        var body in
+        if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+            WriteError(w, http.StatusBadRequest, &Options{Error: err.Error()})
+            return
+        }
+
+        // Field validation
+        fieldErrs := make(map[string]string)
+
+        if body.Symbol == "" {
+            fieldErrs["symbol"] = "required"
+        } else if len(body.Symbol) > 10 {
+            fieldErrs["symbol"] = "too long"
+        }
+
+        if len(fieldErrs) > 0 {
+            WriteError(w, http.StatusUnprocessableEntity, &Options{
+                Error:       ErrValidationFailed.Error(),
+                RequestID:   reqID,
+                FieldErrors: fieldErrs,
+            })
+            return
+        }
+
+        uid := CurrentUserID(r)
+        if uid == uuid.Nil {
+            WriteError(w, http.StatusUnauthorized, &Options{Error: ErrUnauthorized.Error()})
+            return
+        }
+
+        metrics, err := app.Store.ListMetricsByStocks(r.Context(), uid, body.Symbol)
+        if err != nil {
+            WriteError(w, http.StatusInternalServerError, &Options{
+                Error:     "failed to retrieve metrics",
+                RequestID: reqID,
+            })
+            return
+        }
+
+        WriteJSON(w, http.StatusOK, &Options{
+            RequestID: reqID,
+            Data: map[string]any{
+                "symbol":  body.Symbol,
+                "metrics": metrics,
+            },
+        })
+    }
+}
+
