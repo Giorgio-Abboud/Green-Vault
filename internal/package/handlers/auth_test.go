@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -429,3 +430,116 @@ func TestDeleteUser(t *testing.T) {
 		})
 	}
 }
+
+func TestListUserMetrics(t *testing.T) {
+    app := newTestApp(t)
+    ctx := context.Background()
+
+    // --- Seed user ---
+    u, err := app.Store.CreateUser(ctx, &models.User{
+        ID:           uuid.New(),
+        Email:        "metrics@example.com",
+        Name:         "Metric",
+        LastName:     "User",
+        PasswordHash: "hashed",
+    })
+    if err != nil {
+        t.Fatalf("seed user: %v", err)
+    }
+
+    // --- Seed fill ---
+    fill := models.UserFill{
+        ID:        uuid.New(),
+        UserID:    u.ID,
+        Symbol:    "AAPL",
+        Timestamp: time.Now().UTC(),
+        Price:     150.0,
+        Side:      "buy",
+        Quantity:  5,
+        Mode:      "Estimate",
+        Result:    "SUCCESS",
+    }
+    if _, err := app.Store.CreateUserFill(ctx, &fill); err != nil {
+        t.Fatalf("seed fill: %v", err)
+    }
+
+    // --- Seed metric ---
+    metric := models.Metric{
+        ID:              uuid.New(),
+        UserFillID:      fill.ID,
+        VwapSlippage:    0.1,
+        Shortfall:       0.02,
+        EffectiveSpread: 0.03,
+        RealizedSpread:  0.04,
+        MarketImpact:    0.05,
+        Drift:           0.06,
+    }
+    if _, err := app.Store.CreateMetric(ctx, &metric); err != nil {
+        t.Fatalf("seed metric: %v", err)
+    }
+
+    // --- Test cases ---
+    tests := []struct {
+        name       string
+        userID     uuid.UUID
+        wantStatus int
+        wantOK     bool
+    }{
+        {
+            name:       "unauthorized",
+            userID:     uuid.Nil,
+            wantStatus: http.StatusUnauthorized,
+            wantOK:     false,
+        },
+        {
+            name:       "valid: has metrics",
+            userID:     u.ID,
+            wantStatus: http.StatusOK,
+            wantOK:     true,
+        },
+    }
+
+    for _, tc := range tests {
+        t.Run(tc.name, func(t *testing.T) {
+            req := httptest.NewRequest("GET", "/v1/metrics/me", nil)
+            req = withUser(req, tc.userID)
+
+            rr := httptest.NewRecorder()
+            ListUserMetrics(app).ServeHTTP(rr, req)
+
+            if rr.Code != tc.wantStatus {
+                t.Fatalf("got status %d want %d. body=%s",
+                    rr.Code, tc.wantStatus, rr.Body.String())
+            }
+
+            res := decodeStdResp(t, rr)
+            if res.Ok != tc.wantOK {
+                t.Fatalf("got ok=%v want %v. body=%s",
+                    res.Ok, tc.wantOK, rr.Body.String())
+            }
+
+            // SUCCESS CASE
+            if tc.name == "valid: has metrics" {
+
+                // res.Data is ALREADY map[string]any — no type assertion
+                data := res.Data
+
+                // Validate user_id field
+                if data["user_id"] != u.ID {
+                    t.Fatalf("user_id mismatch: got %v want %v", data["user_id"], u.ID)
+                }
+
+                // Validate metrics array
+                metricsRaw, ok := data["metrics"].([]any)
+                if !ok {
+                    t.Fatalf("metrics is not an array, got %T", data["metrics"])
+                }
+
+                if len(metricsRaw) == 0 {
+                    t.Fatalf("expected at least one metric")
+                }
+            }
+        })
+    }
+}
+
