@@ -361,7 +361,7 @@ func TestDeleteUser(t *testing.T) {
 	store := newStore(t)
 	ctx := context.Background()
 
-	// 🧩 Seed a test user
+	//Seed a test user
 	idTest := uuid.New()
 	u := models.User{
 		ID:           idTest,
@@ -374,7 +374,7 @@ func TestDeleteUser(t *testing.T) {
 		t.Fatalf("seed CreateUser: %v", err)
 	}
 
-	// 🧩 Seed a user fill tied to that user
+	// Seed a user fill tied to that user
 	fill := models.UserFill{
 		ID:        uuid.New(),
 		UserID:    idTest,
@@ -388,7 +388,7 @@ func TestDeleteUser(t *testing.T) {
 		t.Fatalf("seed CreateUserFill: %v", err)
 	}
 
-	// 🧩 Seed a metric tied to that user fill (not directly to user)
+	// Seed a metric tied to that user fill (not directly to user)
 	metric := models.Metric{
 		ID:              uuid.New(),
 		UserFillID:      fill.ID,
@@ -474,3 +474,100 @@ func TestDeleteUser(t *testing.T) {
 		})
 	}
 }
+
+func TestListMetricsByUserID(t *testing.T) {
+	store := newStore(t)
+	ctx := context.Background()
+
+	// seed user
+	u := models.User{
+		ID:           uuid.New(),
+		Email:        "metricslist@example.com",
+		Name:         "Met",
+		LastName:     "Ric",
+		PasswordHash: "hashed",
+	}
+	if _, err := store.CreateUser(ctx, &u); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	// seed user fill (needed because Metric.UserFillID references fills)
+	f := models.UserFill{
+		ID:        uuid.New(),
+		UserID:    u.ID,
+		Symbol:    "AAPL",
+		Timestamp: time.Now().UTC(),
+		Price:     180.0,
+		Side:      "buy",
+		Quantity:  10,
+		Mode:      "Estimate",
+		Result:    "SUCCESS",
+	}
+	if _, err := store.CreateUserFill(ctx, &f); err != nil {
+		t.Fatalf("seed fill: %v", err)
+	}
+
+	// seed metrics
+	m1 := models.Metric{
+		ID:              uuid.New(),
+		UserFillID:      f.ID,
+		VwapSlippage:    0.1,
+		Shortfall:       0.02,
+		EffectiveSpread: 0.01,
+		RealizedSpread:  0.005,
+		MarketImpact:    0.03,
+		Drift:           0.01,
+	}
+	m2 := models.Metric{
+		ID:              uuid.New(),
+		UserFillID:      f.ID,
+		VwapSlippage:    0.2,
+		Shortfall:       0.04,
+		EffectiveSpread: 0.02,
+		RealizedSpread:  0.01,
+		MarketImpact:    0.05,
+		Drift:           0.02,
+	}
+
+	if _, err := store.CreateMetric(ctx, &m1); err != nil {
+		t.Fatalf("seed metric m1: %v", err)
+	}
+	if _, err := store.CreateMetric(ctx, &m2); err != nil {
+		t.Fatalf("seed metric m2: %v", err)
+	}
+
+	tests := []struct {
+		name       string
+		userID     uuid.UUID
+		wantCount  int
+		wantErr    bool
+	}{
+		{
+			name:      "ok - returns metrics for user",
+			userID:    u.ID,
+			wantCount: 2,
+			wantErr:   false,
+		},
+		{
+			name:      "ok - user has no metrics",
+			userID:    uuid.New(),
+			wantCount: 0,
+			wantErr:   false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			metrics, err := store.ListMetricsByUserID(ctx, tc.userID)
+
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ListMetricsByUserID err=%v wantErr=%v", err, tc.wantErr)
+			}
+
+			if len(metrics) != tc.wantCount {
+				t.Fatalf("got %d metrics, want %d", len(metrics), tc.wantCount)
+			}
+		})
+	}
+}
+
