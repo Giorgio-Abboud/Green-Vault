@@ -118,6 +118,7 @@ func (s *Store) ListUserFillsByUserID(ctx context.Context, userID uuid.UUID) ([]
 	return fills, nil
 }
 
+//* BELOW
 func (s *Store) ListMetricsByUserID(ctx context.Context, userID uuid.UUID) ([]models.Metric, error) {
 	var metrics []models.Metric
 	if err := s.DB.WithContext(ctx).Where("user_id = ?", userID).Find(&metrics).Error; err != nil {

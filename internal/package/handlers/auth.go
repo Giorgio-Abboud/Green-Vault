@@ -412,3 +412,40 @@ func DeleteUser(app *App) http.HandlerFunc {
 		})
 	}
 }
+
+func ListUserMetrics(app *App) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        reqID := uuid.NewString()
+
+        // --- AUTH CHECK ---
+        uid := CurrentUserID(r)
+        if uid == uuid.Nil {
+            WriteError(w, http.StatusUnauthorized, &Options{
+                Error:     ErrUnauthorized.Error(),
+                RequestID: reqID,
+            })
+            return
+        }
+
+        // --- FETCH METRICS ---
+        metrics, err := app.Store.ListMetricsByUserID(r.Context(), uid)
+        if err != nil {
+            WriteError(w, http.StatusInternalServerError, &Options{
+                Error:     ErrLookup.Error(),
+                RequestID: reqID,
+            })
+            return
+        }
+
+        // --- RESPONSE SUCCESS ---
+        WriteJSON(w, http.StatusOK, &Options{
+            RequestID: reqID,
+            Data: map[string]any{
+                "user_id":  uid,
+                "metrics":  metrics,
+                "count":    len(metrics),
+            },
+        })
+    }
+}
+
