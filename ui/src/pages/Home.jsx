@@ -44,10 +44,10 @@ export default function Home() {
         </div>
 
         <div className="rounded-xl2 border border-brand-border bg-brand-card p-6 shadow-soft space-y-4">
-          <h3 className={sectionTitle}>Why Use our App</h3>
+          <h3 className={sectionTitle}>Green Vault</h3>
           <p className={paragraph}>
             Trades are not simply good or bad — each contains multiple components that influence the
-            outcome of your trade. GreenVault provides a clear way to see your performance so you can
+            outcome of your trade. Green Vault provides a clear way to see your performance so you can
             learn fast and improve faster.
           </p>
 
