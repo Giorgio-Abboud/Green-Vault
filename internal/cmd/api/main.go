@@ -88,6 +88,8 @@ func main() {
 			pr.Post("/fills", handlers.SaveFill(app))
 			pr.Put("/users/me", handlers.EditProfile(app))
 			pr.Delete("/users/me", handlers.DeleteUser(app))
+			pr.Get("/metrics", handlers.ListMetricsByUserID(app))
+			pr.Get("/metrics", handlers.FilterMetricsBySymbol(app))
 		})
 	})
 
