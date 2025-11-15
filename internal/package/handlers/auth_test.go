@@ -431,120 +431,148 @@ func TestDeleteUser(t *testing.T) {
 	}
 }
 
-func TestListUserMetrics(t *testing.T) {
-    app := newTestApp(t)
-    ctx := context.Background()
+func TestListUserFillsAndMetrics(t *testing.T) {
+	app := newTestApp(t)
 
-    // --- Seed user ---
-    u, err := app.Store.CreateUser(ctx, &models.User{
-        ID:           uuid.New(),
-        Email:        "metrics@example.com",
-        Name:         "Metric",
-        LastName:     "User",
-        PasswordHash: "hashed",
-    })
-    if err != nil {
-        t.Fatalf("seed user: %v", err)
-    }
+	// --- Seed data shared across tests ---
+	// user with no fills
+	userNoFills, _ := app.Store.CreateUser(context.Background(), &models.User{
+		ID:           uuid.New(),
+		Email:        "nofills@example.com",
+		Name:         "No",
+		LastName:     "Fills",
+		PasswordHash: "hashed",
+	})
 
-    // --- Seed fill ---
-    fill := models.UserFill{
-        ID:        uuid.New(),
-        UserID:    u.ID,
-        Symbol:    "AAPL",
-        Timestamp: time.Now().UTC(),
-        Price:     150.0,
-        Side:      "buy",
-        Quantity:  5,
-        Mode:      "Estimate",
-        Result:    "SUCCESS",
-    }
-    if _, err := app.Store.CreateUserFill(ctx, &fill); err != nil {
-        t.Fatalf("seed fill: %v", err)
-    }
+	// user with one fill + metric
+	userOneFill, _ := app.Store.CreateUser(context.Background(), &models.User{
+		ID:           uuid.New(),
+		Email:        "onefill@example.com",
+		Name:         "One",
+		LastName:     "Fill",
+		PasswordHash: "hashed",
+	})
 
-    // --- Seed metric ---
-    metric := models.Metric{
-        ID:              uuid.New(),
-        UserFillID:      fill.ID,
-        VwapSlippage:    0.1,
-        Shortfall:       0.02,
-        EffectiveSpread: 0.03,
-        RealizedSpread:  0.04,
-        MarketImpact:    0.05,
-        Drift:           0.06,
-    }
-    if _, err := app.Store.CreateMetric(ctx, &metric); err != nil {
-        t.Fatalf("seed metric: %v", err)
-    }
+	fillID := uuid.New()
+	app.Store.CreateUserFill(context.Background(), &models.UserFill{
+		ID:        fillID,
+		UserID:    userOneFill.ID,
+		Symbol:    "AAPL",
+		Timestamp: time.Now().UTC(),
+		Price:     180.5,
+		Side:      "buy",
+		Quantity:  10,
+		Mode:      "Analyze",
+		Result:    "SUCCESS",
+	})
 
-    // --- Test cases ---
-    tests := []struct {
-        name       string
-        userID     uuid.UUID
-        wantStatus int
-        wantOK     bool
-    }{
-        {
-            name:       "unauthorized",
-            userID:     uuid.Nil,
-            wantStatus: http.StatusUnauthorized,
-            wantOK:     false,
-        },
-        {
-            name:       "valid: has metrics",
-            userID:     u.ID,
-            wantStatus: http.StatusOK,
-            wantOK:     true,
-        },
-    }
+	app.Store.CreateMetric(context.Background(), &models.Metric{
+		ID:              uuid.New(),
+		UserFillID:      fillID,
+		VwapSlippage:    0.1,
+		Shortfall:       0.02,
+		EffectiveSpread: 0.01,
+		RealizedSpread:  0.005,
+		MarketImpact:    0.03,
+		Drift:           0.01,
+	})
 
-    for _, tc := range tests {
-        t.Run(tc.name, func(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		userID     uuid.UUID
+		wantStatus int
+		wantOK     bool
+		wantFills  int
+	}{
+		{
+			name:       "unauthorized",
+			userID:     uuid.Nil,
+			wantStatus: http.StatusUnauthorized,
+			wantOK:     false,
+			wantFills:  0,
+		},
+		{
+			name:       "valid - user with no fills",
+			userID:     userNoFills.ID,
+			wantStatus: http.StatusOK,
+			wantOK:     true,
+			wantFills:  0,
+		},
+		{
+			name:       "valid - user with one fill and metric",
+			userID:     userOneFill.ID,
+			wantStatus: http.StatusOK,
+			wantOK:     true,
+			wantFills:  1,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 
-            req := httptest.NewRequest("GET", "/v1/metrics/me", nil)
-            req = withUser(req, tc.userID)
+			req := httptest.NewRequest("GET", "/v1/users/data", nil)
+			if tc.userID != uuid.Nil {
+				req = withUser(req, tc.userID)
+			}
 
-            rr := httptest.NewRecorder()
-            ListUserMetrics(app).ServeHTTP(rr, req)
+			rr := httptest.NewRecorder()
+			ListUserFillsAndMetrics(app).ServeHTTP(rr, req)
 
-            if rr.Code != tc.wantStatus {
-                t.Fatalf("got status %d want %d. body=%s",
-                    rr.Code, tc.wantStatus, rr.Body.String())
-            }
+			// status code check
+			if rr.Code != tc.wantStatus {
+				t.Fatalf("status = %d; want %d. body=%s",
+					rr.Code, tc.wantStatus, rr.Body.String())
+			}
 
-            res := decodeStdResp(t, rr)
-            if res.Ok != tc.wantOK {
-                t.Fatalf("got ok=%v want %v. body=%s",
-                    res.Ok, tc.wantOK, rr.Body.String())
-            }
+			// decode standard JSON response
+			res := decodeStdResp(t, rr)
 
-            // --- SUCCESS CASE ---
-            if tc.name == "valid: has metrics" {
+			if res.Ok != tc.wantOK {
+				t.Fatalf("ok = %v; want %v. body=%s",
+					res.Ok, tc.wantOK, rr.Body.String())
+			}
 
-                data := res.Data
+			// if unauthorized case, nothing else to check
+			if tc.userID == uuid.Nil {
+				return
+			}
 
-                // user_id comes back as a string
-                uidStr, ok := data["user_id"].(string)
-                if !ok {
-                    t.Fatalf("user_id is not a string, got %T", data["user_id"])
-                }
+			// Extract fills array
+			fillsAny, ok := res.Data["fills"]
+			if !ok {
+				t.Fatalf("expected 'fills' field. body=%s", rr.Body.String())
+			}
 
-                if uidStr != u.ID.String() {
-                    t.Fatalf("user_id mismatch: got %v want %v",
-                        uidStr, u.ID.String())
-                }
+			var fillsSlice []interface{}
+			if fillsAny != nil {
+				var ok bool
+				fillsSlice, ok = fillsAny.([]interface{})
+				if !ok {
+					t.Fatalf("fills is %T; want []interface{}. body=%s",
+						fillsAny, rr.Body.String())
+				}
+			}
 
-                // metrics must be an array
-                metricsRaw, ok := data["metrics"].([]any)
-                if !ok {
-                    t.Fatalf("metrics is not an array, got %T", data["metrics"])
-                }
+			if len(fillsSlice) != tc.wantFills {
+				t.Fatalf("fills count = %d; want %d. body=%s",
+					len(fillsSlice), tc.wantFills, rr.Body.String())
+			}
 
-                if len(metricsRaw) == 0 {
-                    t.Fatalf("expected at least one metric")
-                }
-            }
-        })
-    }
+			// if expecting metric, verify its presence
+			if tc.wantFills == 1 {
+				firstFill, ok := fillsSlice[0].(map[string]any)
+				if !ok {
+					t.Fatalf("first fill is %T; want map[string]any",
+						fillsSlice[0])
+				}
+
+				metricAny, ok := firstFill["Metric"]
+				if !ok {
+					metricAny, ok = firstFill["metric"]
+				}
+				if !ok || metricAny == nil {
+					t.Fatalf("expected metric on fill but none found. body=%s",
+						rr.Body.String())
+				}
+			}
+		})
+	}
 }
