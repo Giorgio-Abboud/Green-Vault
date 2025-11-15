@@ -208,14 +208,9 @@ func (f *fakeStore) DeleteUser(_ context.Context, id uuid.UUID) (*models.User, e
 	return &cp, nil
 }
 
-
 func (f *fakeStore) ListUserFillsByUserID(_ context.Context, userID uuid.UUID) ([]models.UserFill, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-
-	if userID == uuid.Nil {
-		return nil, errors.New("invalid user id")
-	}
 
 	var fills []models.UserFill
 	for _, fill := range f.fills {
@@ -223,34 +218,38 @@ func (f *fakeStore) ListUserFillsByUserID(_ context.Context, userID uuid.UUID) (
 			fills = append(fills, fill)
 		}
 	}
-
 	return fills, nil
 }
 
-func (f *fakeStore) ListMetricsByUserID(_ context.Context, userID uuid.UUID) ([]models.Metric, error) {
+// ListUserFillsWithMetrics returns all fills + their metrics for a user.
+func (f *fakeStore) ListUserFillsWithMetrics(_ context.Context, userID uuid.UUID) ([]models.UserFill, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if userID == uuid.Nil {
-		return nil, errors.New("invalid user id")
-	}
+	var result []models.UserFill
 
-	// Find all UserFill IDs belonging to this user
-	userFillIDs := make(map[uuid.UUID]struct{})
 	for _, fill := range f.fills {
-		if fill.UserID == userID {
-			userFillIDs[fill.ID] = struct{}{}
+		if fill.UserID != userID {
+			continue
 		}
+
+		// attach metric if exists
+		var metric models.Metric
+		for _, m := range f.metrics {
+			if m.UserFillID == fill.ID {
+				metric = m
+				break
+			}
+		}
+
+		fillCopy := fill
+		fillCopy.Metric = metric
+		result = append(result, fillCopy)
 	}
 
-	// Collect all metrics linked to those fills
-	var metrics []models.Metric
-	for _, m := range f.metrics {
-		if _, ok := userFillIDs[m.UserFillID]; ok {
-			metrics = append(metrics, m)
-		}
+	// return empty slice rather than nil to make JSON more predictable
+	if result == nil {
+		result = []models.UserFill{}
 	}
-
-	return metrics, nil
+	return result, nil
 }
-

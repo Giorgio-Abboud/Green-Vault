@@ -118,11 +118,18 @@ func (s *Store) ListUserFillsByUserID(ctx context.Context, userID uuid.UUID) ([]
 	return fills, nil
 }
 
-//* BELOW
-func (s *Store) ListMetricsByUserID(ctx context.Context, userID uuid.UUID) ([]models.Metric, error) {
-	var metrics []models.Metric
-	if err := s.DB.WithContext(ctx).Where("user_id = ?", userID).Find(&metrics).Error; err != nil {
+// ListUserFillsWithMetrics returns all fills + their metrics for a user.
+func (s *Store) ListUserFillsWithMetrics(ctx context.Context, userID uuid.UUID) ([]models.UserFill, error) {
+	var fills []models.UserFill
+
+	err := s.DB.WithContext(ctx).
+		Preload("Metric").
+		Where("user_id = ?", userID).
+		Find(&fills).Error
+
+	if err != nil {
 		return nil, err
 	}
-	return metrics, nil
+
+	return fills, nil
 }
