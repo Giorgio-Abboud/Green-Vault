@@ -2,38 +2,72 @@ package datastore
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
-	"gorm.io/driver/sqlite"
+	gpostgres "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
+
+	_ "github.com/lib/pq"
+
+	"github.com/testcontainers/testcontainers-go"
+	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/Giorgio-Abboud/Green-Vault/internal/package/models"
 )
 
-/************ test helpers ************/
-
 func newTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
+	ctx := context.Background()
 
-	// Open SQLite in-memory DB with UTC NowFunc
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
-		NowFunc: func() time.Time { return time.Now().UTC() },
-	})
+	// Start Postgres container
+	pg, err := tcpostgres.Run(
+		ctx,
+		"postgres:16",
+		tcpostgres.WithDatabase("testdb"),
+		tcpostgres.WithUsername("test"),
+		tcpostgres.WithPassword("test"),
+		testcontainers.WithWaitStrategy(
+			wait.ForSQL("5432/tcp", "postgres",
+				func(host string, port nat.Port) string {
+					return fmt.Sprintf(
+						"host=%s port=%s user=test password=test dbname=testdb sslmode=disable",
+						host, port.Port(),
+					)
+				},
+			).WithStartupTimeout(20*time.Second),
+		),
+	)
 	if err != nil {
-		t.Fatalf("open sqlite: %v", err)
+		t.Fatalf("failed to start postgres container: %v", err)
 	}
 
-	sqlDB, _ := db.DB()
-	sqlDB.Exec("PRAGMA foreign_keys = ON;")
-	sqlDB.Exec("PRAGMA busy_timeout = 5000;")
+	t.Cleanup(func() { _ = pg.Terminate(ctx) })
 
-	db.Exec("CREATE TABLE IF NOT EXISTS __type_alias_fix (ts timestamptz);")
+	// Connection string
+	connStr, err := pg.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		t.Fatalf("failed to get connection string: %v", err)
+	}
 
-	if err := db.AutoMigrate(&models.User{}, &models.UserFill{}, &models.Metric{}); err != nil {
-		t.Fatalf("migrate: %v", err)
+	// Connect with GORM
+	db, err := gorm.Open(gpostgres.Open(connStr), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("failed to connect to postgres: %v", err)
+	}
+
+	// Run migrations
+	if err := db.AutoMigrate(
+		&models.User{},
+		&models.UserFill{},
+		&models.Metric{},
+	); err != nil {
+		t.Fatalf("failed to migrate test db: %v", err)
 	}
 
 	return db
