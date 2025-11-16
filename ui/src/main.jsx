@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import Calculate from "./pages/Calculate";
 import Home from "./pages/Home";
 import EditProfile from "./pages/EditProfile";
+import History from "./pages/History";  // ✅ NEW
 
 // Simple route guard
 function RequireAuth({ children }) {
@@ -22,6 +23,7 @@ function RequireAuth({ children }) {
 
 function AppShell() {
   const { user } = useAuth();
+  const location = useLocation();
 
   const linkBase =
     "px-3 py-1.5 rounded-md text-sm font-medium transition outline-none focus:ring-2 focus:ring-brand-accent/70";
@@ -39,10 +41,9 @@ function AppShell() {
     </Link>
   );
 
-  const location = useLocation();
-
   return (
     <div className="min-h-screen bg-brand-bg text-gray-100">
+
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-brand-border bg-brand-bg/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
@@ -55,24 +56,35 @@ function AppShell() {
 
           <nav className="flex items-center gap-2">
             {navLink({ to: "/", label: "Home", active: location.pathname === "/" })}
+
             {!user &&
               navLink({
                 to: "/signup",
                 label: "Sign up",
                 active: location.pathname === "/signup",
               })}
+
             {!user &&
               navLink({
                 to: "/login",
                 label: "Log in",
                 active: location.pathname === "/login",
               })}
+
             {user &&
               navLink({
                 to: "/calculate",
                 label: "Calculate",
                 active: location.pathname === "/calculate",
               })}
+
+            {user &&
+              navLink({
+                to: "/history",
+                label: "History",               // ✅ NEW NAV ITEM
+                active: location.pathname === "/history",
+              })}
+
             {user &&
               navLink({
                 to: "/edit-profile",
@@ -87,14 +99,17 @@ function AppShell() {
       <main className="mx-auto max-w-5xl px-4 py-8">
         <Routes>
           <Route path="/" element={<Home />} />
+
           <Route
             path="/signup"
             element={!user ? <Signup /> : <Navigate to="/" replace />}
           />
+
           <Route
             path="/login"
             element={!user ? <Login /> : <Navigate to="/" replace />}
           />
+
           <Route
             path="/calculate"
             element={
@@ -103,6 +118,16 @@ function AppShell() {
               </RequireAuth>
             }
           />
+
+          <Route
+            path="/history"                     // ✅ NEW ROUTE
+            element={
+              <RequireAuth>
+                <History />
+              </RequireAuth>
+            }
+          />
+
           <Route
             path="/edit-profile"
             element={
@@ -111,6 +136,7 @@ function AppShell() {
               </RequireAuth>
             }
           />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
