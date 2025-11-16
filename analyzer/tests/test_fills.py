@@ -8,6 +8,22 @@ from fastapi import HTTPException, status
     "fills",
     [
         {
+            "timestamp": datetime.fromisoformat("2026-10-15T07:00:00-04:00"),
+            "price": 256.70,
+            "quantity": 1000,
+            "side": "buy",
+            "symbol": "AAPL",
+            "expected": {
+                "ok": False,
+                "request_id": "",
+                "fills": None,
+                "error": "Validation failed",
+                "field_errors": {
+                    "timestamp": "Inputted timestamp must not be in the future."
+                }
+            }
+        },
+        {
             "timestamp": datetime.fromisoformat("2025-10-15T07:00:00-04:00"),
             "price": 256.70,
             "quantity": 1000,
