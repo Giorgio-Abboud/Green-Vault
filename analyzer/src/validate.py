@@ -17,6 +17,8 @@ def validate_user_fills(timestamp: datetime, price: float, quantity: int, side: 
 
     if not RFC3339_RE.match(timestamp.isoformat()):
         field_errors["timestamp"] = "Inputted timestamp must be RFC3339 with a -04:00 offset."
+    elif timestamp > datetime.now(timestamp.tzinfo):
+        field_errors["timestamp"] = "Inputted timestamp must not be in the future."
     elif timestamp.time() < time(10, 30) or timestamp.time() > time(17):
         field_errors["timestamp"] = "Inputted timestamp cannot be before 9:30 AM or after 4:00 PM."
     elif timestamp.weekday() >= 5:
