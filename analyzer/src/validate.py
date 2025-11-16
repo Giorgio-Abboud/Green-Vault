@@ -20,7 +20,7 @@ def validate_user_fills(timestamp: datetime, price: float, quantity: int, side: 
     elif timestamp > datetime.now(timestamp.tzinfo):
         field_errors["timestamp"] = "Inputted timestamp must not be in the future."
     elif timestamp.time() < time(10, 30) or timestamp.time() > time(17):
-        field_errors["timestamp"] = "Inputted timestamp cannot be before 9:30 AM or after 4:00 PM."
+        field_errors["timestamp"] = "Inputted timestamp cannot be before 10:30 AM or after 5:00 PM."
     elif timestamp.weekday() >= 5:
         field_errors["timestamp"] = "Inputted timestamp cannot be on a weekend."
     elif date(timestamp.year, timestamp.month, timestamp.day) in us_holidays:
