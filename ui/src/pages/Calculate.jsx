@@ -115,6 +115,7 @@ export default function Calculate() {
           side,
           symbol: symbol.trim().toUpperCase(),
           mode: mode.toLowerCase(),
+          mode: mode,
         },
         metrics: parsedMetrics,
       };
