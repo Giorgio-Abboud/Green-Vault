@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { calcPost, apiPost } from "../api";
 
 export default function Calculate() {
@@ -326,7 +326,7 @@ export default function Calculate() {
               <label className={labelCls}>Symbol</label>
               <input
                 className={inputClass("symbol")}
-                placeholder="e.g. BTCUSD"
+                placeholder="e.g. AAPL"
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value)}
                 required
