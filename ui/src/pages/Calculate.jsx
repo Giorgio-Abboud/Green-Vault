@@ -324,7 +324,17 @@ export default function Calculate() {
             </div>
 
             <div className="md:col-span-2">
-              <label className={labelCls}>Symbol</label>
+              <label className={labelCls + " flex items-center gap-2"}>
+                Symbol
+                <div className="group relative cursor-pointer">
+                  <div className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-brand-border text-[10px] text-gray-300">
+                    ?
+                  </div>
+                  <div className="absolute left-6 top-0 z-10 hidden w-44 rounded-lg border border-brand-border bg-brand-card/95 p-3 text-xs text-gray-200 shadow-lg group-hover:block">
+                    Stock ticker symbol. Example: AAPL, TSLA, NVDA
+                  </div>
+                </div>
+              </label>
               <input
                 className={inputClass("symbol")}
                 placeholder="e.g. AAPL"
@@ -336,6 +346,16 @@ export default function Calculate() {
               {fieldErrors.symbol && (
                 <p className="mt-1 text-xs text-red-400">{fieldErrors.symbol}</p>
               )}
+
+              <div className="mt-1">
+                <a
+                  href="https://www.nasdaq.com/market-activity/stocks/screener"
+                  target="_blank"
+                  className="text-brand-accent underline text-sm hover:brightness-110"
+                >
+                  Supported symbols
+                </a>
+              </div>
             </div>
           </div>
 
