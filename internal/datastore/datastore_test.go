@@ -579,7 +579,7 @@ func TestListUserFillsWithMetrics(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			fills, err := store.ListUserFillsWithMetrics(ctx, tc.userID)
+			fills, err := store.ListUserFillsWithMetrics(ctx, tc.userID, "")
 
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("ListUserFillsWithMetrics err=%v wantErr=%v", err, tc.wantErr)
