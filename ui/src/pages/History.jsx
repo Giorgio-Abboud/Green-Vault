@@ -6,15 +6,42 @@ export default function History() {
   const [fills, setFills] = useState(null);
   const [userId, setUserId] = useState("");
   const [msg, setMsg] = useState("");
+  const [symbol, setSymbol] = useState("");
+  const [filterActive, setFilterActive] = useState(false);
 
   const btn =
     "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium bg-brand-accent text-black hover:brightness-110 transition shadow-soft disabled:opacity-50 disabled:cursor-not-allowed";
+
+  function applyFilter() {
+    if (!symbol.trim()) {
+      setMsg("Please enter a symbol to filter.");
+      setFilterActive(false);
+      return;
+    }
+
+    setMsg(`Filter applied: ${symbol.trim().toUpperCase()}`);
+    setFilterActive(true);
+  }
+
+  function clearFilter() {
+    setSymbol("");
+    setFilterActive(false);
+    setMsg("Filter cleared. Click 'List All' to refresh data.");
+  }
 
   async function listAll() {
     setLoading(true);
     setMsg("");
     try {
-      const data = await apiGet("/v1/users/data");
+      let endpoint = "/v1/history/data";
+
+      if (filterActive && symbol.trim()) {
+        endpoint = `/v1/history/data?symbol=${encodeURIComponent(
+          symbol.trim()
+        )}`;
+      }
+
+      const data = await apiGet(endpoint);
 
       const uid = data.user_id || "";
       const arr = Array.isArray(data.fills) ? data.fills : [];
@@ -23,7 +50,11 @@ export default function History() {
       setFills(arr);
 
       if (arr.length === 0) {
-        setMsg("You don't have saved fills and metrics yet");
+        if (filterActive) {
+          setMsg(`No trade data found for symbol "${symbol.trim()}"`);
+        } else {
+          setMsg("You don't have saved fills and metrics yet");
+        }
       }
     } catch (err) {
       setFills([]);
@@ -41,10 +72,10 @@ export default function History() {
         </h2>
 
         <div className="rounded-xl2 border border-brand-border bg-brand-card p-6 shadow-soft mb-6">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <p className="text-gray-300">
-                Click the button below to list all of your saved fills and metrics.
+                Use the filter if you want, then click List All to search.
               </p>
               {userId && (
                 <p className="text-xs text-gray-400 mt-1">
@@ -52,9 +83,36 @@ export default function History() {
                 </p>
               )}
             </div>
-            <button onClick={listAll} disabled={loading} className={btn}>
-              {loading ? "Loading..." : "List All"}
-            </button>
+
+            <div className="flex items-center gap-3">
+              <input
+                className="rounded-lg px-3 py-2 text-sm bg-black/30 border border-brand-border text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                placeholder="Filter by Symbol (optional)"
+                value={symbol}
+                onChange={(e) => {
+                  setSymbol(e.target.value.toUpperCase());
+                  setFilterActive(false);
+                }}
+              />
+
+              <button onClick={applyFilter} disabled={loading} className={btn}>
+                Apply Filter
+              </button>
+
+              {filterActive && (
+                <button
+                  onClick={clearFilter}
+                  disabled={loading}
+                  className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium bg-gray-500 text-white hover:brightness-110 transition shadow-soft"
+                >
+                  Clear Filter
+                </button>
+              )}
+
+              <button onClick={listAll} disabled={loading} className={btn}>
+                {loading ? "Loading..." : "List All"}
+              </button>
+            </div>
           </div>
 
           {msg && (
@@ -88,7 +146,9 @@ export default function History() {
                         </span>
                       </div>
                       <div>
-                        <span className="block text-gray-400 text-xs">Quantity</span>
+                        <span className="block text-gray-400 text-xs">
+                          Quantity
+                        </span>
                         <span>{fill.Quantity || fill.quantity}</span>
                       </div>
                       <div>

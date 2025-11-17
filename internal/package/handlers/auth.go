@@ -426,8 +426,14 @@ func ListUserFillsAndMetrics(app *App) http.HandlerFunc {
 			return
 		}
 
-		// Fetch all fills + metrics in one call
-		fills, err := app.Store.ListUserFillsWithMetrics(r.Context(), uid)
+		// Optional filter if provided
+		symbol := r.URL.Query().Get("symbol")
+
+		fills, err := app.Store.ListUserFillsWithMetrics(
+			r.Context(),
+			uid,
+			symbol, // pass symbol filter
+		)
 		if err != nil {
 			WriteError(w, http.StatusInternalServerError, &Options{
 				Error:     ErrLookup.Error(),
@@ -436,12 +442,11 @@ func ListUserFillsAndMetrics(app *App) http.HandlerFunc {
 			return
 		}
 
-		// success response
 		WriteJSON(w, http.StatusOK, &Options{
 			RequestID: reqID,
 			Data: map[string]any{
 				"user_id": uid,
-				"fills":   fills, // includes metrics per fill
+				"fills":   fills,
 			},
 		})
 	}

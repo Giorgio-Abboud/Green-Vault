@@ -222,7 +222,7 @@ func (f *fakeStore) ListUserFillsByUserID(_ context.Context, userID uuid.UUID) (
 }
 
 // ListUserFillsWithMetrics returns all fills + their metrics for a user.
-func (f *fakeStore) ListUserFillsWithMetrics(_ context.Context, userID uuid.UUID) ([]models.UserFill, error) {
+func (f *fakeStore) ListUserFillsWithMetrics(_ context.Context, userID uuid.UUID, symbol string) ([]models.UserFill, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -230,6 +230,10 @@ func (f *fakeStore) ListUserFillsWithMetrics(_ context.Context, userID uuid.UUID
 
 	for _, fill := range f.fills {
 		if fill.UserID != userID {
+			continue
+		}
+
+		if symbol != "" && fill.Symbol != symbol {
 			continue
 		}
 
@@ -247,9 +251,9 @@ func (f *fakeStore) ListUserFillsWithMetrics(_ context.Context, userID uuid.UUID
 		result = append(result, fillCopy)
 	}
 
-	// return empty slice rather than nil to make JSON more predictable
 	if result == nil {
 		result = []models.UserFill{}
 	}
+
 	return result, nil
 }

@@ -19,5 +19,5 @@ type Store interface {
 	UpdateUser(ctx context.Context, u *models.User) (*models.User, error)
 	DeleteUser(ctx context.Context, id uuid.UUID) (*models.User, error)
 	ListUserFillsByUserID(ctx context.Context, userID uuid.UUID) ([]models.UserFill, error)
-	ListUserFillsWithMetrics(ctx context.Context, userID uuid.UUID) ([]models.UserFill, error)
+	ListUserFillsWithMetrics(ctx context.Context, userID uuid.UUID, symbol string) ([]models.UserFill, error)
 }
