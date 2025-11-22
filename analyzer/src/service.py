@@ -1,6 +1,7 @@
 import logging
+import re
 import uuid
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Any
 from zoneinfo import ZoneInfo
 from datetime import datetime
 
@@ -9,6 +10,7 @@ import numpy as np
 
 from .metric import Window, compute_all_metrics, _tp_lookup, prepare_bars_df
 from .twelve_client import build_one_minute_window, get_time_series
+from reviewer.formatter import build_feedback
 
 # ---- user fills data frame creation ----
 def _create_fills_df(timestamp, price: float, quantity: int, side: str) -> tuple[pd.DataFrame, int]:
@@ -215,7 +217,7 @@ def make_calculation(
     side: str,
     symbol: str,
     mode: str,
-) -> Tuple[bool, str, Dict, Dict]:
+) -> Tuple[bool, str, Dict, Dict, Dict | None]:
     logging.info("make_calculation called (mode=%s)", mode)
 
     fills = {
@@ -235,5 +237,36 @@ def make_calculation(
         logging.warning("Unknown mode %r; defaulting to analyze", mode)
         metrics = analyze(timestamp, price, quantity, side, symbol)
 
+    review = None
+    try:
+        numeric = _extract_numeric_metrics(metrics)
+        # Need all six keys to build feedback; skip if incomplete
+        required_keys = {"vwap_slippage", "shortfall", "effective_spread", "realized_spread", "market_impact", "drift"}
+        if required_keys.issubset(numeric.keys()):
+            review = build_feedback(numeric)
+    except Exception:
+        logging.exception("Failed to build reviewer feedback")
+
     req_id = str(uuid.uuid4())
-    return True, req_id, fills, metrics
+    return True, req_id, fills, metrics, review
+
+
+def _extract_numeric_metrics(metrics: Dict[str, Any]) -> Dict[str, float]:
+    """
+    Pull float values out of the metrics dict (which may contain strings like '12.3 bps ...').
+    """
+    out: Dict[str, float] = {}
+    for key, val in metrics.items():
+        if isinstance(val, (int, float)):
+            out[key] = float(val)
+            continue
+        if isinstance(val, str):
+            m = re.search(r"-?\d+(?:\.\d+)?", val)
+            if m:
+                try:
+                    out[key] = float(m.group(0))
+                    continue
+                except ValueError:
+                    pass
+        # Leave missing entries out; caller can decide if enough keys are present
+    return out

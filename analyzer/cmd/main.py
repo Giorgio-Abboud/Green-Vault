@@ -56,11 +56,22 @@ class Metric(BaseModel):
     market_impact: MetricValue
     drift: MetricValue
 
+
+class Review(BaseModel):
+    conclusion_key: str | None = None
+    conclusion: str | None = None
+    scores: str | None = None
+    why: str | None = None
+    improve: str | None = None
+    axis_summary: str | None = None
+    summary: str | None = None
+
 class CalcOut(BaseModel):
     ok: bool
     request_id: str = Field(..., description="Trace ID for the calculation")
     fills: Fill
     metrics: Metric
+    review: Review | None = None
 
 EST_OFFSET = timedelta(hours=-4)
 EST_TZINFO = timezone(EST_OFFSET, name="EST")
@@ -99,7 +110,7 @@ def calculate(body: CalcIn):
         except HTTPException as validate_fail:
             return JSONResponse(content=validate_fail.detail, status_code=validate_fail.status_code)
 
-        ok, req_id, fills, metrics = make_calculation(
+        ok, req_id, fills, metrics, review = make_calculation(
             timestamp=timestamp,
             price=body.price,
             quantity=body.quantity,
@@ -108,7 +119,7 @@ def calculate(body: CalcIn):
             mode=mode,
         )
 
-        return {"ok": ok, "request_id": req_id, "fills": fills, "metrics": metrics}
+        return {"ok": ok, "request_id": req_id, "fills": fills, "metrics": metrics, "review": review}
 
     except Exception as e:
         logging.exception("Error in /calculate")

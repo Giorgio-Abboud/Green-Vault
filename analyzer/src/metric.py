@@ -558,33 +558,27 @@ def compute_all_metrics(
 
     metrics: Dict[str, Any] = {
         "vwap_slippage": (
-            f"{float(vwap_slip):.2f} bps — "
-            "Your VWAP vs Market VWAP over the window (mid≈HLC3). Positive = worse fill."
+            f"{float(vwap_slip):.2f}"
         ) if np.isfinite(vwap_slip) else "unavailable",
 
         "shortfall": (
-            f"{float(impl_short):.2f} bps — "
-            "Implementation Shortfall vs arrival (mid≈HLC3 at order arrival). Positive = worse."
+            f"{float(impl_short):.2f}"
         ) if np.isfinite(impl_short) else "unavailable",
 
         "effective_spread": (
-            f"{float(eff_spread):.2f} bps — "
-            "2× distance from mid at execution; how far from mid you traded. Positive = worse."
+            f"{float(eff_spread):.2f}"
         ) if np.isfinite(eff_spread) else "unavailable",
 
         "realized_spread": (
-            f"{float(realized_spread):.2f} bps — "
-            "Effective spread vs mid after +1m (configurable). Smaller than effective ⇒ reversion. Positive = worse."
+            f"{float(realized_spread):.2f}"
         ) if np.isfinite(realized_spread) else "unavailable",
 
         "market_impact": (
-            f"{float(impact):.2f} bps — "
-            "Heuristic impact (effective - realized): non-reverting cost by +1m. Positive = worse."
+            f"{float(impact):.2f}"
         ) if np.isfinite(impact) else "unavailable",
 
         "drift": (
-            f"{float(timing):.2f} bps — "
-            "Side-signed market move over your window (end - start mid). Positive = against you."
+            f"{float(timing):.2f}"
         ) if np.isfinite(timing) else "unavailable",
     }
 
