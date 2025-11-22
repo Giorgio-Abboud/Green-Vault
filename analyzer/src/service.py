@@ -18,11 +18,6 @@ def _create_fills_df(timestamp, price: float, quantity: int, side: str) -> tuple
     side_val = 1 if side.upper() == "BUY" else -1
     fill_ts = pd.Timestamp(timestamp)
 
-    # if fill_ts.tzinfo is None:
-    #     fill_ts = fill_ts.tz_localize("America/New_York")
-    # else:
-    #     fill_ts = fill_ts.tz_convert("America/New_York")
-
     fills_df = pd.DataFrame(
         [{"ts": fill_ts, "price": float(price), "qty": int(quantity)}],
         columns=["ts", "price", "qty"],
@@ -199,15 +194,6 @@ def estimate(timestamp: datetime, price: float, quantity: int, side: str, symbol
     metrics["market_impact"] = None
     return metrics
 
-# def convert_timezone(timestamp: datetime, timezone: str) -> datetime:
-#     NY = ZoneInfo("America/New_York")
-#     user_zone = ZoneInfo(timezone)
-#     if timestamp.tzinfo is None:
-#         aware_ts = timestamp.replace(tzinfo=user_zone)
-#     else:
-#         aware_ts = timestamp.astimezone(user_zone)
-#     return aware_ts.astimezone(NY)
-
 
 def make_calculation(
     *,
@@ -268,5 +254,5 @@ def _extract_numeric_metrics(metrics: Dict[str, Any]) -> Dict[str, float]:
                     continue
                 except ValueError:
                     pass
-        # Leave missing entries out; caller can decide if enough keys are present
+
     return out

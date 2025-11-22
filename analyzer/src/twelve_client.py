@@ -1,13 +1,13 @@
-import os, json
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional
-
 import pandas as pd
-from dotenv import load_dotenv
-from twelvedata import TDClient
+import uuid
+from fastapi import HTTPException, status
+from twelvedata.exceptions import TwelveDataError
 
-load_dotenv()
+from .data_client import client
+from .validate import validate_twelve_data
 
 # Sets the timestamp to Eastern Standard Time (New York time)
 def build_one_minute_window(user_ts: str) -> tuple[datetime, datetime]:
@@ -24,17 +24,6 @@ def build_one_minute_window(user_ts: str) -> tuple[datetime, datetime]:
 
 _FMT = "%Y-%m-%d %H:%M:%S"  # Twelve Data expects this format for start/end
 
-_td = None
-def client() -> TDClient:
-    global _td
-    if _td is None:
-        key = os.getenv("TWELVE_DATA_API_KEY")
-        if not key:
-            raise RuntimeError("TWELVE_DATA_API_KEY is not set")
-        _td = TDClient(apikey=key)
-    return _td
-
-
 def get_time_series(
         symbol: str, 
         interval: str, 
@@ -47,15 +36,30 @@ def get_time_series(
     Turns the OHLCV data into a dataframe for the given window.
     """
 
-    raw_payload = client().time_series(
-        symbol=symbol,
-        interval=interval,                     # e.g., "5min"
-        start_date=start_dt.strftime(_FMT),    # "YYYY-MM-DD HH:MM:SS"
-        end_date=end_dt.strftime(_FMT),
-        timezone=timezone
-    ).as_json()
+    try:
+        raw_payload = client().time_series(
+            symbol=symbol,
+            interval=interval,                     # e.g., "5min"
+            start_date=start_dt.strftime(_FMT),    # "YYYY-MM-DD HH:MM:SS"
+            end_date=end_dt.strftime(_FMT),
+            timezone=timezone
+        ).as_json()
+    except TwelveDataError as exc:
+        # Surface rate-limit and other upstream issues as HTTP errors for the frontend
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "ok": False,
+                "request_id": str(uuid.uuid4()),
+                "fills": None,
+                "error": "Too many API calls to Twelve Data. Please wait a moment and try again.",
+                "field_errors": {"twelve_data": str(exc)},
+            },
+        ) from exc
 
-    payload: Optional[object]
+    # Let HTTPException bubble up to the caller so the API returns a proper error
+    validate_twelve_data(raw_payload)
+
     if isinstance(raw_payload, tuple):
         payload = list(raw_payload)
     else:
@@ -97,12 +101,5 @@ def get_time_series(
 
 # Check if a stock symbol exists
 def check_symbol(symbol: str):
-    try:
-        payload = client().get_stocks_list(symbol=symbol, country="United States").as_json()
-        if isinstance(payload, dict):
-            payload = json.loads(payload)
-
-    except Exception:
-        return False
-    
-    return any(row["symbol"] == symbol for row in payload)
+    from .data_client import check_symbol as _check_symbol
+    return _check_symbol(symbol)

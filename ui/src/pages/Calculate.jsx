@@ -90,11 +90,15 @@ export default function Calculate() {
     setFieldErrors({});
     setReview(null);
     let local = {};
-    const nPrice = Number.parseFloat(price);
-    const nQty = Number.parseFloat(quantity);
+    const rawPrice = String(price ?? "").trim();
+    const rawQty = String(quantity ?? "").trim();
+    const priceValid = /^(\d+(\.\d+)?|\.\d+)$/.test(rawPrice);
+    const qtyValid = /^\d+$/.test(rawQty);
+    const nPrice = priceValid ? Number.parseFloat(rawPrice) : NaN;
+    const nQty = qtyValid ? Number.parseFloat(rawQty) : NaN;
     if (!timestamp) local.timestamp = "Required";
-    if (!Number.isFinite(nPrice)) local.price = "Must be a number";
-    if (!Number.isFinite(nQty)) local.quantity = "Must be a valid number";
+    if (!priceValid || !Number.isFinite(nPrice)) local.price = "Must be a number";
+    if (!qtyValid || !Number.isFinite(nQty)) local.quantity = "Must be a valid number";
     if (!side) local.side = "Required";
     if (!symbol) local.symbol = "Required";
     if (Object.keys(local).length) {
@@ -164,11 +168,15 @@ export default function Calculate() {
       fe.timestamp = "must be valid RFC3339 datetime (e.g. 2025-10-12T14:00:00-04:00)";
     }
 
-    const nPrice = Number.parseFloat(price);
+    const rawPrice = String(price ?? "").trim();
+    const priceValid = /^(\d+(\.\d+)?|\.\d+)$/.test(rawPrice);
+    const nPrice = priceValid ? Number.parseFloat(rawPrice) : NaN;
     if (!Number.isFinite(nPrice) || nPrice <= 0)
       fe.price = "must be a positive number";
 
-    const nQty = Number.parseFloat(quantity);
+    const rawQty = String(quantity ?? "").trim();
+    const qtyValid = /^\d+$/.test(rawQty);
+    const nQty = qtyValid ? Number.parseFloat(rawQty) : NaN;
     if (!Number.isFinite(nQty) || nQty <= 0 || !Number.isInteger(nQty))
       fe.quantity = "must be a positive integer";
 
