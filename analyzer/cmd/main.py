@@ -4,7 +4,8 @@ from typing import Literal, Annotated
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, BeforeValidator
+from pydantic import BaseModel, Field, BeforeValidator, StrictFloat, StrictInt
+from twelvedata.exceptions import TwelveDataError
 from src.service import make_calculation
 from src.validate import validate_user_fills
 
@@ -19,9 +20,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-PositivePrice = Annotated[float, Field(gt=0)]
-StrictPosInt = Annotated[int, Field(strict=True, gt=0)]
+PositivePrice = Annotated[StrictFloat, Field(gt=0)]
+StrictPosInt = Annotated[StrictInt, Field(gt=0)]
 TradeSide = Literal["buy", "sell"]
 Ticker = Annotated[str, Field(pattern=r"^[A-Z]+$", strip_whitespace=True)]
 RequestMode = Annotated[
@@ -56,11 +56,22 @@ class Metric(BaseModel):
     market_impact: MetricValue
     drift: MetricValue
 
+
+class Review(BaseModel):
+    conclusion_key: str | None = None
+    conclusion: str | None = None
+    scores: str | None = None
+    why: str | None = None
+    improve: str | None = None
+    axis_summary: str | None = None
+    summary: str | None = None
+
 class CalcOut(BaseModel):
     ok: bool
     request_id: str = Field(..., description="Trace ID for the calculation")
     fills: Fill
     metrics: Metric
+    review: Review | None = None
 
 EST_OFFSET = timedelta(hours=-4)
 EST_TZINFO = timezone(EST_OFFSET, name="EST")
@@ -99,22 +110,38 @@ def calculate(body: CalcIn):
         except HTTPException as validate_fail:
             return JSONResponse(content=validate_fail.detail, status_code=validate_fail.status_code)
 
-        ok, req_id, fills, metrics = make_calculation(
-            timestamp=timestamp,
-            price=body.price,
-            quantity=body.quantity,
-            side=body.side,
-            symbol=body.symbol,
-            mode=mode,
-        )
+        try:
+            ok, req_id, fills, metrics, review = make_calculation(
+                timestamp=timestamp,
+                price=body.price,
+                quantity=body.quantity,
+                side=body.side,
+                symbol=body.symbol,
+                mode=mode,
+            )
+        except HTTPException as http_err:
+            return JSONResponse(content=http_err.detail, status_code=http_err.status_code)
+        except TwelveDataError as data_err:
+            return JSONResponse(
+                content={
+                    "ok": False,
+                    "request_id": "",
+                    "fills": None,
+                    "metrics": {"error": str(data_err)},
+                },
+                status_code=429,
+            )
 
-        return {"ok": ok, "request_id": req_id, "fills": fills, "metrics": metrics}
+        return {"ok": ok, "request_id": req_id, "fills": fills, "metrics": metrics, "review": review}
 
     except Exception as e:
         logging.exception("Error in /calculate")
-        return {
-            "ok": False,
-            "request_id": "",
-            "fills": None,
-            "metrics": {"error": str(e)},
-        }
+        return JSONResponse(
+            content={
+                "ok": False,
+                "request_id": "",
+                "fills": None,
+                "metrics": {"error": str(e)},
+            },
+            status_code=500,
+        )

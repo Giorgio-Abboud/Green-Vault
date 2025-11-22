@@ -9,6 +9,7 @@ export default function Calculate() {
   const [symbol, setSymbol] = useState("");
   const [mode, setMode] = useState("Analyze");
   const [metrics, setMetrics] = useState(null);
+  const [review, setReview] = useState(null);
   const [msg, setMsg] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -87,19 +88,24 @@ export default function Calculate() {
     e.preventDefault();
     setMsg("");
     setFieldErrors({});
+    setReview(null);
     let local = {};
-    const nPrice = Number.parseFloat(price);
-    const nQty = Number.parseFloat(quantity);
+    const rawPrice = String(price ?? "").trim();
+    const rawQty = String(quantity ?? "").trim();
+    const priceValid = /^(\d+(\.\d+)?|\.\d+)$/.test(rawPrice);
+    const qtyValid = /^\d+$/.test(rawQty);
+    const nPrice = priceValid ? Number.parseFloat(rawPrice) : NaN;
+    const nQty = qtyValid ? Number.parseFloat(rawQty) : NaN;
     if (!timestamp) local.timestamp = "Required";
-    if (!Number.isFinite(nPrice)) local.price = "Must be a number";
-    if (!Number.isFinite(nQty)) local.quantity = "Must be a valid number";
+    if (!priceValid || !Number.isFinite(nPrice)) local.price = "Must be a number";
+    if (!qtyValid || !Number.isFinite(nQty)) local.quantity = "Must be a valid number";
     if (!side) local.side = "Required";
     if (!symbol) local.symbol = "Required";
     if (Object.keys(local).length) {
       setFieldErrors(local);
       setMetrics(null);
       setMsg(
-        "❌ The information you entered doesn’t meet the requirements. Please fix the highlighted fields."
+        "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
       );
       const order = ["timestamp", "price", "quantity", "side", "symbol"];
       const first = order.find((k) => local[k]);
@@ -121,15 +127,17 @@ export default function Calculate() {
       };
       const r = await calcPost(payload);
       setMetrics(r?.metrics || null);
-      setMsg("✅ calculated");
+      setReview(r?.review || null);
+      setMsg("calculated");
     } catch (err) {
       const { status, data } = parseApiError(err);
       setMetrics(null);
+      setReview(null);
       if (status === 422 && data && typeof data === "object") {
         const fe = data.field_errors || {};
         setFieldErrors(fe);
         setMsg(
-          "❌ The information you entered doesn’t meet the requirements. Please fix the highlighted fields."
+          "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
         );
         const order = ["timestamp", "price", "quantity", "side", "symbol"];
         const first = order.find((k) => fe[k]);
@@ -140,7 +148,7 @@ export default function Calculate() {
         }
         return;
       }
-      setMsg(`❌ ${data?.error || err?.message || "Something went wrong"}`);
+      setMsg(`Warning: ${data?.error || err?.message || "Something went wrong"}`);
     }
   }
 
@@ -160,11 +168,15 @@ export default function Calculate() {
       fe.timestamp = "must be valid RFC3339 datetime (e.g. 2025-10-12T14:00:00-04:00)";
     }
 
-    const nPrice = Number.parseFloat(price);
+    const rawPrice = String(price ?? "").trim();
+    const priceValid = /^(\d+(\.\d+)?|\.\d+)$/.test(rawPrice);
+    const nPrice = priceValid ? Number.parseFloat(rawPrice) : NaN;
     if (!Number.isFinite(nPrice) || nPrice <= 0)
       fe.price = "must be a positive number";
 
-    const nQty = Number.parseFloat(quantity);
+    const rawQty = String(quantity ?? "").trim();
+    const qtyValid = /^\d+$/.test(rawQty);
+    const nQty = qtyValid ? Number.parseFloat(rawQty) : NaN;
     if (!Number.isFinite(nQty) || nQty <= 0 || !Number.isInteger(nQty))
       fe.quantity = "must be a positive integer";
 
@@ -177,7 +189,7 @@ export default function Calculate() {
     if (Object.keys(fe).length) {
       setFieldErrors(fe);
       setMsg(
-        "❌ The information you entered doesn’t meet the requirements. Please fix the highlighted fields."
+        "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
       );
       const order = ["timestamp", "price", "quantity", "side", "symbol"];
       const first = order.find((k) => fe[k]);
@@ -214,14 +226,14 @@ export default function Calculate() {
       };
 
       await apiPost("/v1/fills", payload);
-      setMsg("✅ Your fills and metrics were saved!");
+      setMsg("calculated: Your fills and metrics were saved!");
     } catch (err) {
       let { status, data } = parseApiError(err);
       if (status === 422 && data && typeof data === "object") {
         const fe2 = data.field_errors || {};
         setFieldErrors(fe2);
         setMsg(
-          "❌ The information you entered doesn’t meet the requirements. Please fix the highlighted fields."
+          "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
         );
         const order = ["timestamp", "price", "quantity", "side", "symbol"];
         const first = order.find((k) => fe2[k]);
@@ -232,12 +244,12 @@ export default function Calculate() {
         }
         return;
       }
-      setMsg(`❌ ${data?.error || err?.message || "Something went wrong"}`);
+      setMsg(`Warning: ${data?.error || err?.message || "Something went wrong"}`);
     }
   }
 
-  const isOk = msg.startsWith("✅");
-  const isErr = msg.startsWith("❌");
+  const isOk = msg.toLowerCase().startsWith("calculated");
+  const isErr = msg.toLowerCase().startsWith("warning");
 
   return (
     <div className="min-h-screen bg-brand-bg text-gray-100">
@@ -392,12 +404,24 @@ export default function Calculate() {
           <div className="mt-6 rounded-xl2 border border-brand-border bg-brand-card p-5 shadow-soft">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-lg font-medium text-gray-100 flex items-center gap-2">
-                <span className="text-brand-accent">⚙️</span> Result Metrics
+                <span className="text-brand-accent">Result</span>
               </h3>
               <button onClick={save} className={btnPrimary}>
                 Save to DB
               </button>
             </div>
+            {review && (
+              <div className="mb-4 rounded-lg border border-brand-border bg-black/30 px-4 py-3 text-sm text-gray-200 shadow-sm space-y-2">
+                <div className="text-base font-semibold text-gray-100">
+                  {review.summary}
+                </div>
+                {review.axis_summary && (
+                  <div className="text-xs text-gray-300">
+                    Axes: {review.axis_summary}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               {Object.entries(metrics).map(([key, value]) => (
                 <div
@@ -413,7 +437,6 @@ export default function Calculate() {
             </div>
           </div>
         )}
-
         {msg && (
           <div
             className={[
