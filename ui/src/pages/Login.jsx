@@ -181,6 +181,16 @@ export default function Login() {
             Log in
           </button>
 
+          <div className="mt-4 text-center text-sm text-gray-300">
+            Don’t have an account?{" "}
+            <a
+              href="/signup"
+              className="text-brand-accent hover:underline"
+            >
+              Sign up
+            </a>
+          </div>
+
           {msg && (
             <div
               className={[
