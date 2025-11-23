@@ -47,16 +47,19 @@ export default function Calculate() {
     while (segments.length < 3) {
       segments.push("00");
     }
+
     const normalizedTime = segments
       .slice(0, 3)
       .map((seg) => seg.padStart(2, "0"))
       .join(":");
+
     return `${datePart}T${normalizedTime}${EST_OFFSET}`;
   }
 
   function parseApiError(err) {
     let status = err?.status ?? err?.response?.status ?? null;
     let data = err?.data ?? err?.response?.data ?? undefined;
+
     const coerce = (x) => {
       if (!x) return undefined;
       if (typeof x !== "string") return x;
@@ -66,12 +69,14 @@ export default function Calculate() {
         return { error: x };
       }
     };
+
     if (
       data === undefined &&
       (typeof err === "string" || typeof err?.message === "string")
     ) {
       const raw = String(typeof err === "string" ? err : err.message).trim();
       const m = raw.match(/^(\d{3})\s+(.+)$/);
+
       if (m) {
         status = Number(m[1]);
         data = coerce(m[2]);
@@ -81,7 +86,35 @@ export default function Calculate() {
     } else {
       data = coerce(data);
     }
+
     return { status, data };
+  }
+
+  function fetchCurrentTime() {
+    try {
+      const now = new Date();
+
+      const estDate = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).formatToParts(now);
+
+      let y = estDate.find((x) => x.type === "year").value;
+      let m = estDate.find((x) => x.type === "month").value;
+      let d = estDate.find((x) => x.type === "day").value;
+      let hh = estDate.find((x) => x.type === "hour").value;
+      let mm = estDate.find((x) => x.type === "minute").value;
+
+      const formatted = `${y}-${m}-${d}T${hh}:${mm}`;
+      setTimestamp(formatted);
+    } catch (e) {
+      console.error("Failed to fetch EST time:", e);
+    }
   }
 
   async function run(e) {
@@ -89,6 +122,13 @@ export default function Calculate() {
     setMsg("");
     setFieldErrors({});
     setReview(null);
+
+    // Auto-fill timestamp for ESTIMATE mode if empty
+    let useTimestamp = timestamp;
+    if (mode === "Estimate" && !useTimestamp) {
+      fetchCurrentTime();
+      useTimestamp = timestamp;
+    }
 
     let local = {};
     const rawPrice = String(price ?? "").trim();
@@ -98,7 +138,7 @@ export default function Calculate() {
     const nPrice = priceValid ? Number.parseFloat(rawPrice) : NaN;
     const nQty = qtyValid ? Number.parseFloat(rawQty) : NaN;
 
-    if (!timestamp) local.timestamp = "Required";
+    if (!useTimestamp) local.timestamp = "Required";
     if (!priceValid || !Number.isFinite(nPrice)) local.price = "Must be a number";
     if (!qtyValid || !Number.isFinite(nQty)) local.quantity = "Must be a valid number";
     if (!side) local.side = "Required";
@@ -110,17 +150,12 @@ export default function Calculate() {
       setMsg(
         "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
       );
-      const order = ["timestamp", "price", "quantity", "side", "symbol"];
-      const first = order.find((k) => local[k]);
-      if (first)
-        requestAnimationFrame(() => {
-          document.querySelector(`[name="${first}"]`)?.focus();
-        });
       return;
     }
 
     try {
-      const tsIso = buildEstIsoFromLocal(timestamp);
+      const tsIso = buildEstIsoFromLocal(useTimestamp);
+
       const payload = {
         timestamp: tsIso,
         price: nPrice,
@@ -129,6 +164,7 @@ export default function Calculate() {
         symbol,
         request: mode,
       };
+
       const r = await calcPost(payload);
       setMetrics(r?.metrics || null);
       setReview(r?.review || null);
@@ -137,21 +173,16 @@ export default function Calculate() {
       const { status, data } = parseApiError(err);
       setMetrics(null);
       setReview(null);
+
       if (status === 422 && data && typeof data === "object") {
         const fe = data.field_errors || {};
         setFieldErrors(fe);
         setMsg(
           "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
         );
-        const order = ["timestamp", "price", "quantity", "side", "symbol"];
-        const first = order.find((k) => fe[k]);
-        if (first) {
-          requestAnimationFrame(() => {
-            document.querySelector(`[name="${first}"]`)?.focus();
-          });
-        }
         return;
       }
+
       setMsg(`Warning: ${data?.error || err?.message || "Something went wrong"}`);
     }
   }
@@ -161,62 +192,61 @@ export default function Calculate() {
       setMsg("No metrics to save");
       return;
     }
+
     setMsg("");
     setFieldErrors({});
 
     const fe = {};
     let tsIso = "";
+
     try {
       tsIso = buildEstIsoFromLocal(timestamp);
     } catch {
-      fe.timestamp = "must be valid RFC3339 datetime (e.g. 2025-10-12T14:00:00-04:00)";
+      fe.timestamp =
+        "must be valid RFC3339 datetime (e.g. 2025-10-12T14:00:00-04:00)";
     }
 
     const rawPrice = String(price ?? "").trim();
     const priceValid = /^(\d+(\.\d+)?|\.\d+)$/.test(rawPrice);
     const nPrice = priceValid ? Number.parseFloat(rawPrice) : NaN;
+
     if (!Number.isFinite(nPrice) || nPrice <= 0)
       fe.price = "must be a positive number";
 
     const rawQty = String(quantity ?? "").trim();
     const qtyValid = /^\d+$/.test(rawQty);
     const nQty = qtyValid ? Number.parseFloat(rawQty) : NaN;
+
     if (!Number.isFinite(nQty) || nQty <= 0 || !Number.isInteger(nQty))
       fe.quantity = "must be a positive integer";
 
-    if (side !== "buy" && side !== "sell") fe.side = "must be 'buy' or 'sell'";
+    if (side !== "buy" && side !== "sell")
+      fe.side = "must be 'buy' or 'sell'";
 
     const sym = String(symbol || "").trim();
     if (!/^[A-Z]+$/.test(sym))
-      fe.symbol = "must contain only uppercase letters (A to Z), no spaces";
+      fe.symbol =
+        "must contain only uppercase letters (A to Z), no spaces";
 
     if (Object.keys(fe).length) {
       setFieldErrors(fe);
       setMsg(
         "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
       );
-      const order = ["timestamp", "price", "quantity", "side", "symbol"];
-      const first = order.find((k) => fe[k]);
-      if (first)
-        requestAnimationFrame(() => {
-          document.querySelector(`[name="${first}"]`)?.focus();
-        });
       return;
     }
 
     try {
-      // Extract numeric prefix from each metric
       const parsedMetrics = {};
       for (const [k, v] of Object.entries(metrics || {})) {
         if (typeof v === "string") {
           const m = v.match(/-?\d+(\.\d+)?/);
           parsedMetrics[k] = m ? parseFloat(m[0]) : 0;
-        } else if (typeof v === "number") {
-          parsedMetrics[k] = v;
         } else {
-          parsedMetrics[k] = 0;
+          parsedMetrics[k] = v;
         }
       }
+
       const payload = {
         fill: {
           timestamp: tsIso,
@@ -234,21 +264,16 @@ export default function Calculate() {
       setMsg("calculated: Your fills and metrics were saved!");
     } catch (err) {
       const { status, data } = parseApiError(err);
+
       if (status === 422 && data && typeof data === "object") {
         const fe2 = data.field_errors || {};
         setFieldErrors(fe2);
         setMsg(
           "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
         );
-        const order = ["timestamp", "price", "quantity", "side", "symbol"];
-        const first = order.find((k) => fe2[k]);
-        if (first) {
-          requestAnimationFrame(() => {
-            document.querySelector(`[name="${first}"]`)?.focus();
-          });
-        }
         return;
       }
+
       setMsg(`Warning: ${data?.error || err?.message || "Something went wrong"}`);
     }
   }
@@ -275,17 +300,34 @@ export default function Calculate() {
           className="space-y-4 rounded-xl2 border border-brand-border bg-brand-card p-5 shadow-soft"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* DATE & TIME — with tooltip + fetch button inline */}
             <div>
               <label className={labelCls + " flex items-center gap-2"}>
                 Date & time
+
+                {/* Tooltip */}
                 <div className="group relative cursor-pointer">
                   <div className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-brand-border text-[10px] text-gray-300">
                     ?
                   </div>
+
                   <div className="absolute left-6 top-0 z-10 hidden w-64 rounded-lg border border-brand-border bg-brand-card/95 p-3 text-xs text-gray-200 shadow-lg group-hover:block">
-                    The time must be between <strong>10:30 AM and 5:00 PM</strong> (stock market hours), Monday–Friday.
+                    The time must be between <strong>10:30 AM and 5:00 PM</strong>  
+                    (stock market hours), Monday–Friday.
                   </div>
                 </div>
+
+                {/* Fetch button INLINE */}
+                {mode === "Estimate" && (
+                  <button
+                    type="button"
+                    onClick={fetchCurrentTime}
+                    className="ml-3 inline-flex items-center rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-black hover:brightness-110"
+                  >
+                    Fetch current time (EST)
+                  </button>
+                )}
               </label>
 
               <input
@@ -301,6 +343,7 @@ export default function Calculate() {
               )}
             </div>
 
+            {/* PRICE */}
             <div>
               <label className={labelCls}>Price</label>
               <input
@@ -316,6 +359,7 @@ export default function Calculate() {
               )}
             </div>
 
+            {/* QUANTITY */}
             <div>
               <label className={labelCls}>Quantity</label>
               <input
@@ -331,6 +375,7 @@ export default function Calculate() {
               )}
             </div>
 
+            {/* SIDE */}
             <div>
               <label className={labelCls}>Side</label>
               <select
@@ -351,6 +396,7 @@ export default function Calculate() {
               )}
             </div>
 
+            {/* SYMBOL */}
             <div className="md:col-span-2">
               <label className={labelCls + " flex items-center gap-2"}>
                 Symbol
@@ -388,6 +434,7 @@ export default function Calculate() {
             </div>
           </div>
 
+          {/* MODE SWITCH BUTTONS */}
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <div className="flex gap-2">
               <button
@@ -398,6 +445,7 @@ export default function Calculate() {
               >
                 Analyze
               </button>
+
               <button
                 type="button"
                 onClick={() => setMode("Estimate")}
@@ -420,6 +468,7 @@ export default function Calculate() {
           </div>
         </form>
 
+        {/* RESULTS */}
         {metrics && (
           <div className="mt-6 rounded-xl2 border border-brand-border bg-brand-card p-5 shadow-soft">
             <div className="mb-3 flex items-center justify-between">
@@ -462,6 +511,7 @@ export default function Calculate() {
           </div>
         )}
 
+        {/* MESSAGES */}
         {msg && (
           <div
             className={[
