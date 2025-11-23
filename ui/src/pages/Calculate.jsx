@@ -89,6 +89,7 @@ export default function Calculate() {
     setMsg("");
     setFieldErrors({});
     setReview(null);
+
     let local = {};
     const rawPrice = String(price ?? "").trim();
     const rawQty = String(quantity ?? "").trim();
@@ -96,11 +97,13 @@ export default function Calculate() {
     const qtyValid = /^\d+$/.test(rawQty);
     const nPrice = priceValid ? Number.parseFloat(rawPrice) : NaN;
     const nQty = qtyValid ? Number.parseFloat(rawQty) : NaN;
+
     if (!timestamp) local.timestamp = "Required";
     if (!priceValid || !Number.isFinite(nPrice)) local.price = "Must be a number";
     if (!qtyValid || !Number.isFinite(nQty)) local.quantity = "Must be a valid number";
     if (!side) local.side = "Required";
     if (!symbol) local.symbol = "Required";
+
     if (Object.keys(local).length) {
       setFieldErrors(local);
       setMetrics(null);
@@ -115,6 +118,7 @@ export default function Calculate() {
         });
       return;
     }
+
     try {
       const tsIso = buildEstIsoFromLocal(timestamp);
       const payload = {
@@ -201,7 +205,7 @@ export default function Calculate() {
     }
 
     try {
-      // Extract numeric prefix from each metric (e.g. "-141.25" from "-141.25 bps — text")
+      // Extract numeric prefix from each metric
       const parsedMetrics = {};
       for (const [k, v] of Object.entries(metrics || {})) {
         if (typeof v === "string") {
@@ -229,7 +233,7 @@ export default function Calculate() {
       await apiPost("/v1/fills", payload);
       setMsg("calculated: Your fills and metrics were saved!");
     } catch (err) {
-      let { status, data } = parseApiError(err);
+      const { status, data } = parseApiError(err);
       if (status === 422 && data && typeof data === "object") {
         const fe2 = data.field_errors || {};
         setFieldErrors(fe2);
@@ -262,6 +266,7 @@ export default function Calculate() {
         select { color: #f3f4f6; background-color: rgba(30,30,30,0.6); }
         option { background-color: #1e1e1e; color: #f3f4f6; }
       `}</style>
+
       <div className="mx-auto max-w-3xl px-4 py-10">
         <h2 className="text-2xl font-semibold tracking-tight mb-6">Calculate</h2>
 
@@ -271,7 +276,18 @@ export default function Calculate() {
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Date & time</label>
+              <label className={labelCls + " flex items-center gap-2"}>
+                Date & time
+                <div className="group relative cursor-pointer">
+                  <div className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-brand-border text-[10px] text-gray-300">
+                    ?
+                  </div>
+                  <div className="absolute left-6 top-0 z-10 hidden w-64 rounded-lg border border-brand-border bg-brand-card/95 p-3 text-xs text-gray-200 shadow-lg group-hover:block">
+                    The time must be between <strong>10:30 AM and 5:00 PM</strong> (stock market hours), Monday–Friday.
+                  </div>
+                </div>
+              </label>
+
               <input
                 className={inputClass("timestamp")}
                 type="datetime-local"
@@ -347,6 +363,7 @@ export default function Calculate() {
                   </div>
                 </div>
               </label>
+
               <input
                 className={inputClass("symbol")}
                 placeholder="e.g. AAPL"
@@ -390,9 +407,11 @@ export default function Calculate() {
                 Estimate
               </button>
             </div>
+
             <div className={badgeMode}>
               Mode: <strong className="text-white">{mode}</strong>
             </div>
+
             <div className="ml-auto">
               <button type="submit" className={btnPrimary}>
                 Run
@@ -411,6 +430,7 @@ export default function Calculate() {
                 Save to DB
               </button>
             </div>
+
             {review && (
               <div className="mb-4 rounded-lg border border-brand-border bg-black/30 px-4 py-3 text-sm text-gray-200 shadow-sm space-y-2">
                 <div className="text-base font-semibold text-gray-100">
@@ -423,6 +443,7 @@ export default function Calculate() {
                 )}
               </div>
             )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               {Object.entries(metrics).map(([key, value]) => (
                 <div
@@ -432,12 +453,15 @@ export default function Calculate() {
                   <span className="capitalize tracking-tight text-gray-300">
                     {key.replace(/_/g, " ")}
                   </span>
-                  <span className="font-semibold text-emerald-400">{value}</span>
+                  <span className="font-semibold text-emerald-400">
+                    {value}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         )}
+
         {msg && (
           <div
             className={[

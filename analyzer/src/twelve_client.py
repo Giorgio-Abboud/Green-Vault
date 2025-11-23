@@ -52,7 +52,7 @@ def get_time_series(
                 "ok": False,
                 "request_id": str(uuid.uuid4()),
                 "fills": None,
-                "error": "Too many API calls to Twelve Data. Please wait a moment and try again.",
+                "error": "Too many API calls to Twelve Data (8 max). Please, try again in 1 minute. Keep enjoying of Green Vault!",
                 "field_errors": {"twelve_data": str(exc)},
             },
         ) from exc
