@@ -89,6 +89,7 @@ export default function Calculate() {
     setMsg("");
     setFieldErrors({});
     setReview(null);
+
     let local = {};
     const rawPrice = String(price ?? "").trim();
     const rawQty = String(quantity ?? "").trim();
@@ -96,25 +97,22 @@ export default function Calculate() {
     const qtyValid = /^\d+$/.test(rawQty);
     const nPrice = priceValid ? Number.parseFloat(rawPrice) : NaN;
     const nQty = qtyValid ? Number.parseFloat(rawQty) : NaN;
+
     if (!timestamp) local.timestamp = "Required";
     if (!priceValid || !Number.isFinite(nPrice)) local.price = "Must be a number";
     if (!qtyValid || !Number.isFinite(nQty)) local.quantity = "Must be a valid number";
     if (!side) local.side = "Required";
     if (!symbol) local.symbol = "Required";
+
     if (Object.keys(local).length) {
       setFieldErrors(local);
       setMetrics(null);
       setMsg(
         "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
       );
-      const order = ["timestamp", "price", "quantity", "side", "symbol"];
-      const first = order.find((k) => local[k]);
-      if (first)
-        requestAnimationFrame(() => {
-          document.querySelector(`[name="${first}"]`)?.focus();
-        });
       return;
     }
+
     try {
       const tsIso = buildEstIsoFromLocal(timestamp);
       const payload = {
@@ -125,6 +123,7 @@ export default function Calculate() {
         symbol,
         request: mode,
       };
+
       const r = await calcPost(payload);
       setMetrics(r?.metrics || null);
       setReview(r?.review || null);
@@ -133,21 +132,6 @@ export default function Calculate() {
       const { status, data } = parseApiError(err);
       setMetrics(null);
       setReview(null);
-      if (status === 422 && data && typeof data === "object") {
-        const fe = data.field_errors || {};
-        setFieldErrors(fe);
-        setMsg(
-          "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
-        );
-        const order = ["timestamp", "price", "quantity", "side", "symbol"];
-        const first = order.find((k) => fe[k]);
-        if (first) {
-          requestAnimationFrame(() => {
-            document.querySelector(`[name="${first}"]`)?.focus();
-          });
-        }
-        return;
-      }
       setMsg(`Warning: ${data?.error || err?.message || "Something went wrong"}`);
     }
   }
@@ -157,6 +141,7 @@ export default function Calculate() {
       setMsg("No metrics to save");
       return;
     }
+
     setMsg("");
     setFieldErrors({});
 
@@ -188,20 +173,11 @@ export default function Calculate() {
 
     if (Object.keys(fe).length) {
       setFieldErrors(fe);
-      setMsg(
-        "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
-      );
-      const order = ["timestamp", "price", "quantity", "side", "symbol"];
-      const first = order.find((k) => fe[k]);
-      if (first)
-        requestAnimationFrame(() => {
-          document.querySelector(`[name="${first}"]`)?.focus();
-        });
+      setMsg("Warning: The information you entered doesn't meet the requirements.");
       return;
     }
 
     try {
-      // Extract numeric prefix from each metric (e.g. "-141.25" from "-141.25 bps — text")
       const parsedMetrics = {};
       for (const [k, v] of Object.entries(metrics || {})) {
         if (typeof v === "string") {
@@ -213,6 +189,7 @@ export default function Calculate() {
           parsedMetrics[k] = 0;
         }
       }
+
       const payload = {
         fill: {
           timestamp: tsIso,
@@ -228,22 +205,7 @@ export default function Calculate() {
       await apiPost("/v1/fills", payload);
       setMsg("calculated: Your fills and metrics were saved!");
     } catch (err) {
-      let { status, data } = parseApiError(err);
-      if (status === 422 && data && typeof data === "object") {
-        const fe2 = data.field_errors || {};
-        setFieldErrors(fe2);
-        setMsg(
-          "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
-        );
-        const order = ["timestamp", "price", "quantity", "side", "symbol"];
-        const first = order.find((k) => fe2[k]);
-        if (first) {
-          requestAnimationFrame(() => {
-            document.querySelector(`[name="${first}"]`)?.focus();
-          });
-        }
-        return;
-      }
+      const { status, data } = parseApiError(err);
       setMsg(`Warning: ${data?.error || err?.message || "Something went wrong"}`);
     }
   }
@@ -253,22 +215,17 @@ export default function Calculate() {
 
   return (
     <div className="min-h-screen bg-brand-bg text-gray-100">
-      <style>{`
-        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-          filter: invert(1);
-          cursor: pointer;
-        }
-        select { color: #f3f4f6; background-color: rgba(30,30,30,0.6); }
-        option { background-color: #1e1e1e; color: #f3f4f6; }
-      `}</style>
       <div className="mx-auto max-w-3xl px-4 py-10">
         <h2 className="text-2xl font-semibold tracking-tight mb-6">Calculate</h2>
 
+        {/* FORM START */}
         <form
           onSubmit={run}
           className="space-y-4 rounded-xl2 border border-brand-border bg-brand-card p-5 shadow-soft"
         >
+          {/* Inputs */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Timestamp */}
             <div>
               <label className={labelCls}>Date & time</label>
               <input
@@ -276,14 +233,12 @@ export default function Calculate() {
                 type="datetime-local"
                 value={timestamp}
                 onChange={(e) => setTimestamp(e.target.value)}
-                required
                 name="timestamp"
+                required
               />
-              {fieldErrors.timestamp && (
-                <p className="mt-1 text-xs text-red-400">{fieldErrors.timestamp}</p>
-              )}
             </div>
 
+            {/* Price */}
             <div>
               <label className={labelCls}>Price</label>
               <input
@@ -291,14 +246,12 @@ export default function Calculate() {
                 placeholder="e.g. 100.50"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                required
                 name="price"
+                required
               />
-              {fieldErrors.price && (
-                <p className="mt-1 text-xs text-red-400">{fieldErrors.price}</p>
-              )}
             </div>
 
+            {/* Quantity */}
             <div>
               <label className={labelCls}>Quantity</label>
               <input
@@ -306,122 +259,144 @@ export default function Calculate() {
                 placeholder="e.g. 10"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                required
                 name="quantity"
+                required
               />
-              {fieldErrors.quantity && (
-                <p className="mt-1 text-xs text-red-400">{fieldErrors.quantity}</p>
-              )}
             </div>
 
+            {/* Side */}
             <div>
               <label className={labelCls}>Side</label>
               <select
                 className={inputClass("side")}
                 value={side}
                 onChange={(e) => setSide(e.target.value)}
-                required
                 name="side"
+                required
               >
-                <option value="" disabled>
-                  Select side
-                </option>
+                <option value="" disabled>Select side</option>
                 <option value="buy">buy</option>
                 <option value="sell">sell</option>
               </select>
-              {fieldErrors.side && (
-                <p className="mt-1 text-xs text-red-400">{fieldErrors.side}</p>
-              )}
             </div>
 
+            {/* Symbol */}
             <div className="md:col-span-2">
-              <label className={labelCls + " flex items-center gap-2"}>
-                Symbol
-                <div className="group relative cursor-pointer">
-                  <div className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-brand-border text-[10px] text-gray-300">
-                    ?
-                  </div>
-                  <div className="absolute left-6 top-0 z-10 hidden w-44 rounded-lg border border-brand-border bg-brand-card/95 p-3 text-xs text-gray-200 shadow-lg group-hover:block">
-                    Stock ticker symbol. Example: AAPL, TSLA, NVDA
-                  </div>
-                </div>
-              </label>
+              <label className={labelCls}>Symbol</label>
               <input
                 className={inputClass("symbol")}
                 placeholder="e.g. AAPL"
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value)}
-                required
                 name="symbol"
+                required
               />
-              {fieldErrors.symbol && (
-                <p className="mt-1 text-xs text-red-400">{fieldErrors.symbol}</p>
-              )}
-
-              <div className="mt-1">
-                <a
-                  href="https://www.nasdaq.com/market-activity/stocks/screener"
-                  target="_blank"
-                  className="text-brand-accent underline text-sm hover:brightness-110"
-                >
-                  Supported symbols
-                </a>
-              </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setMode("Analyze")}
-                disabled={mode === "Analyze"}
-                className={mode === "Analyze" ? btnPrimary : btnGhost}
-              >
-                Analyze
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("Estimate")}
-                disabled={mode === "Estimate"}
-                className={mode === "Estimate" ? btnPrimary : btnGhost}
-              >
-                Estimate
-              </button>
-            </div>
+          {/* Buttons */}
+          <div className="flex gap-3 pt-2 items-center">
+            <button
+              type="button"
+              onClick={() => setMode("Analyze")}
+              disabled={mode === "Analyze"}
+              className={mode === "Analyze" ? btnPrimary : btnGhost}
+            >
+              Analyze
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMode("Estimate")}
+              disabled={mode === "Estimate"}
+              className={mode === "Estimate" ? btnPrimary : btnGhost}
+            >
+              Estimate
+            </button>
+
             <div className={badgeMode}>
               Mode: <strong className="text-white">{mode}</strong>
             </div>
-            <div className="ml-auto">
-              <button type="submit" className={btnPrimary}>
-                Run
-              </button>
-            </div>
+
+            <button type="submit" className={`${btnPrimary} ml-auto`}>
+              Run
+            </button>
           </div>
         </form>
 
+        {/* RESULTS */}
         {metrics && (
           <div className="mt-6 rounded-xl2 border border-brand-border bg-brand-card p-5 shadow-soft">
+            
+            {/* Header */}
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-100 flex items-center gap-2">
+              <h3 className="text-lg font-medium text-gray-100">
                 <span className="text-brand-accent">Result</span>
               </h3>
               <button onClick={save} className={btnPrimary}>
                 Save to DB
               </button>
             </div>
+
+            {/* ===== DECISION REVIEW CARD ===== */}
             {review && (
-              <div className="mb-4 rounded-lg border border-brand-border bg-black/30 px-4 py-3 text-sm text-gray-200 shadow-sm space-y-2">
-                <div className="text-base font-semibold text-gray-100">
-                  {review.summary}
-                </div>
+              <div className="mt-6 rounded-xl2 border border-brand-border bg-brand-card p-5 shadow-soft space-y-4">
+                <h3 className="text-lg font-medium text-brand-accent">
+                  Decision Review
+                </h3>
+
+                {review.summary && (
+                  <div className="rounded-lg border border-brand-border bg-black/30 px-4 py-3 shadow-sm">
+                    <div className="text-base font-semibold text-gray-100">
+                      {review.summary}
+                    </div>
+                  </div>
+                )}
+
+                {review.conclusion && (
+                  <div className="rounded-lg border border-brand-border bg-black/30 px-4 py-3 shadow-sm space-y-1">
+                    <div className="font-semibold text-gray-100">Conclusion</div>
+                    <div className="text-gray-300 text-sm">{review.conclusion}</div>
+                  </div>
+                )}
+
+                {review.why && (
+                  <div className="rounded-lg border border-brand-border bg-black/30 px-4 py-3 shadow-sm space-y-1">
+                    <div className="font-semibold text-gray-100">Why?</div>
+                    <div className="text-gray-300 text-sm whitespace-pre-line">
+                      {review.why}
+                    </div>
+                  </div>
+                )}
+
+                {review.improve && (
+                  <div className="rounded-lg border border-brand-border bg-black/30 px-4 py-3 shadow-sm space-y-1">
+                    <div className="font-semibold text-gray-100">How to Improve</div>
+                    <div className="text-gray-300 text-sm">{review.improve}</div>
+                  </div>
+                )}
+
                 {review.axis_summary && (
-                  <div className="text-xs text-gray-300">
-                    Axes: {review.axis_summary}
+                  <div className="rounded-lg border border-brand-border bg-black/30 px-4 py-3 shadow-sm space-y-1">
+                    <div className="font-semibold text-gray-100">Axis Summary</div>
+                    <div className="text-gray-300 text-sm">
+                      {JSON.stringify(review.axis_summary)}
+                    </div>
+                  </div>
+                )}
+
+                {review.scores && (
+                  <div className="rounded-lg border border-brand-border bg-black/30 px-4 py-3 shadow-sm space-y-1">
+                    <div className="font-semibold text-gray-100">Scores</div>
+                    <pre className="text-gray-400 text-xs">
+                      {JSON.stringify(review.scores, null, 2)}
+                    </pre>
                   </div>
                 )}
               </div>
             )}
+
+            {/* METRICS GRID */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               {Object.entries(metrics).map(([key, value]) => (
                 <div
@@ -437,6 +412,8 @@ export default function Calculate() {
             </div>
           </div>
         )}
+
+        {/* MESSAGE */}
         {msg && (
           <div
             className={[
