@@ -46,64 +46,73 @@ export default function Home() {
         <div className="rounded-xl2 border border-brand-border bg-brand-card p-6 shadow-soft space-y-4">
           <h3 className={sectionTitle}>Green Vault</h3>
           <p className={paragraph}>
-            Trades are not simply good or bad — each contains multiple components that influence the
-            outcome of your trade. Green Vault provides a clear way to see your performance so you can
-            learn fast and improve faster.
+            Trades are not simply good or bad, they each contain various components that influence the outcome of your 
+            trade. GreenVault provides a clear way to see your performances so you can learn fast and improve faster.
           </p>
 
           <h3 className={subTitle}>The Three Cost Drivers</h3>
           <ul className={list}>
             <li><strong className="text-white">Spread:</strong> How much you paid to access liquidity.</li>
             <li><strong className="text-white">Timing:</strong> How the market moved while you executed the order.</li>
-            <li><strong className="text-white">Impact:</strong> How much your trading permanently influences future prices.</li>
+            <li><strong className="text-white">Impact:</strong> How much your trading permanently influences the future prices.</li>
           </ul>
 
           <h3 className={subTitle}>Metric Guide</h3>
-          <p className={paragraph}>Values are calculated in bps (1 bps = 0.01%).</p>
+          <p className={paragraph}>The values will be calculated in bps (1 bps = 0.01%).</p>
 
           <h4 className={subTitle}>VWAP Slippage</h4>
           <p className={paragraph}>
-            Measures how your execution price compares to the market’s volume-weighted average price
-            during your execution window. Positive slippage = worse fill. Negative slippage = better fill.
+            The slippage between your trade price and the market’s volume-weighted average price (VWAP) over your 
+            execution window. It tells you how your price compares to what other traders paid, on average, during that 
+            same period. Positive slippage means a worse fill (you paid more on a buy or sold for less on a sell). 
+            Negative slippage means a better fill (you paid less on a buy or sold for more on a sell).
           </p>
 
           <h4 className={subTitle}>Implementation Shortfall</h4>
           <p className={paragraph}>
-            The cost of not getting filled instantly at the arrival price. Positive = market moved
-            against you. Zero = matched arrival. Negative = price improved in your favor.
+            The cost of not getting filled instantly at the price when you started the trade. It measures the difference 
+            between your execution price and the market price at your decision time. Positive shortfall means the 
+            market moved against you (your fill was worse than the arrival price). Zero means you effectively matched 
+            the arrival price. Negative means the market moved in your favor and you improved on the arrival price.
           </p>
 
           <h4 className={subTitle}>Effective Spread</h4>
           <p className={paragraph}>
-            Shows your immediate execution cost relative to the mid-price. Positive = worse (crossed
-            the spread). Negative = better (closer to or better than mid).
+            The difference between an execution price and the midpoint of the bid-ask spread. It reflects your immediate 
+            trading cost at execution. Positive values mean you crossed more of the spread and paid more or received less
+            than the mid (worse). Negative values mean you traded closer to or even better than the mid (better).
           </p>
 
           <h4 className={subTitle}>Realized Spread</h4>
           <p className={paragraph}>
-            Compares your trade price to the market a few minutes later. Positive = worse outcome
-            after the fact. Negative = better outcome.
+            Compares your trade price to an approximate market price a few minutes after the trade. From the trader’s 
+            point of view, it shows whether your price ended up looking good or bad once the market settled. Positive 
+            values mean your trade looks worse than the later market price (you would have done better by waiting). 
+            Negative values mean you traded at a better price than where the market was minutes later.
           </p>
 
           <h4 className={subTitle}>Market Impact</h4>
           <p className={paragraph}>
-            The portion of shortfall caused by the price moving while you traded. Large trades can
-            push prices up (buying) or down (selling). Positive = price moved against you. Negative =
-            moved in your favor.
+            The part of your implementation shortfall that comes from the price moving against you while you were 
+            trading. This is the cost that results from moving the market price with your own trade. Large orders can 
+            push prices up when buying or down when selling. Positive values mean the price moved against you during 
+            the window. Negative values mean the price moved in your favor while you traded.
           </p>
 
           <h4 className={subTitle}>Drift</h4>
           <p className={paragraph}>
-            Price movement after your trade finished. Positive = market drifted against you. Negative =
-            drifted in your favor.
+            The part of your implementation shortfall that comes from price movement after you finished trading, 
+            essentially timing and luck. It shows whether the market kept moving against you or in your favor once your 
+            order was done. Positive values mean the market drifted further against you after completion (bad timing). 
+            Negative values mean the market later moved in your favor (good timing).
           </p>
 
           <h4 className={subTitle}>How to Read Combinations</h4>
           <p className={paragraph}>
-            Different combinations highlight different issues. For example: if you buy a stock and
-            VWAP slippage is +5 bps but implementation shortfall is +40 bps, your execution was fine,
-            but your timing wasn’t. Most of the cost came from price movement before your order fully
-            filled, not from paying a worse price than other traders.
+            Different combinations result in different outcomes. For example, you buy a stock and VWAP slippage is
+            +5 bps, but implementation shortfall is +40 bps. That combination means your execution vs the market was 
+            fine, but your timing wasn’t ideal. Most of the cost came from the price moving against you before you got
+            filled (your order fully going through), not from getting a bad price relative to other traders.
           </p>
         </div>
       </div>
