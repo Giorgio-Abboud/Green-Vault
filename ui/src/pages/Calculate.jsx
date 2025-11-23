@@ -221,6 +221,7 @@ export default function Calculate() {
           side,
           symbol: sym,
           mode: mode.toLowerCase(),
+          result: review.summary,
         },
         metrics: parsedMetrics,
       };
