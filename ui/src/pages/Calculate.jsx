@@ -13,10 +13,14 @@ export default function Calculate() {
   const [msg, setMsg] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // ------------------------------
+  // CSS CLASSES
+  // ------------------------------
   const baseInput =
     "w-full rounded-lg bg-brand-card/60 border border-brand-border px-3 py-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent/70 focus:border-brand-accent/60 transition";
   const errorInput =
     "w-full rounded-lg border-2 border-red-500 bg-brand-card/60 px-3 py-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/60 transition";
+
   const inputClass = (field) => (fieldErrors[field] ? errorInput : baseInput);
 
   const labelCls = "text-sm text-gray-300";
@@ -26,11 +30,15 @@ export default function Calculate() {
     `${btnBase} bg-brand-accent text-black hover:brightness-110 shadow-soft`;
   const btnGhost =
     `${btnBase} bg-brand-card/60 text-gray-200 border border-brand-border hover:border-brand-accent/50`;
+
   const badgeMode =
     "inline-flex items-center gap-2 rounded-md border border-brand-border bg-brand-card/80 px-2.5 py-1 text-xs text-gray-300";
 
   const EST_OFFSET = "-04:00";
 
+  // ------------------------------
+  // HELPERS
+  // ------------------------------
   function buildEstIsoFromLocal(value) {
     if (!value) throw new Error("Timestamp required");
     const trimmed = value.trim();
@@ -74,7 +82,7 @@ export default function Calculate() {
       data === undefined &&
       (typeof err === "string" || typeof err?.message === "string")
     ) {
-      const raw = String(typeof err === "string" ? err : err.message).trim();
+      const raw = String(err?.message || err).trim();
       const m = raw.match(/^(\d{3})\s+(.+)$/);
 
       if (m) {
@@ -117,13 +125,16 @@ export default function Calculate() {
     }
   }
 
+  // ------------------------------
+  // RUN CALCULATION
+  // ------------------------------
   async function run(e) {
     e.preventDefault();
     setMsg("");
     setFieldErrors({});
     setReview(null);
 
-    // Auto-fill timestamp for ESTIMATE mode if empty
+    // Auto-fill timestamp for Estimate mode
     let useTimestamp = timestamp;
     if (mode === "Estimate" && !useTimestamp) {
       fetchCurrentTime();
@@ -133,8 +144,10 @@ export default function Calculate() {
     let local = {};
     const rawPrice = String(price ?? "").trim();
     const rawQty = String(quantity ?? "").trim();
+
     const priceValid = /^(\d+(\.\d+)?|\.\d+)$/.test(rawPrice);
     const qtyValid = /^\d+$/.test(rawQty);
+
     const nPrice = priceValid ? Number.parseFloat(rawPrice) : NaN;
     const nQty = qtyValid ? Number.parseFloat(rawQty) : NaN;
 
@@ -147,9 +160,7 @@ export default function Calculate() {
     if (Object.keys(local).length) {
       setFieldErrors(local);
       setMetrics(null);
-      setMsg(
-        "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
-      );
+      setMsg("Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields.");
       return;
     }
 
@@ -177,9 +188,7 @@ export default function Calculate() {
       if (status === 422 && data && typeof data === "object") {
         const fe = data.field_errors || {};
         setFieldErrors(fe);
-        setMsg(
-          "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
-        );
+        setMsg("Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields.");
         return;
       }
 
@@ -187,6 +196,9 @@ export default function Calculate() {
     }
   }
 
+  // ------------------------------
+  // SAVE METRICS TO DB
+  // ------------------------------
   async function save() {
     if (!metrics) {
       setMsg("No metrics to save");
@@ -202,8 +214,7 @@ export default function Calculate() {
     try {
       tsIso = buildEstIsoFromLocal(timestamp);
     } catch {
-      fe.timestamp =
-        "must be valid RFC3339 datetime (e.g. 2025-10-12T14:00:00-04:00)";
+      fe.timestamp = "must be valid RFC3339 datetime (e.g. 2025-10-12T14:00:00-04:00)";
     }
 
     const rawPrice = String(price ?? "").trim();
@@ -225,14 +236,11 @@ export default function Calculate() {
 
     const sym = String(symbol || "").trim();
     if (!/^[A-Z]+$/.test(sym))
-      fe.symbol =
-        "must contain only uppercase letters (A to Z), no spaces";
+      fe.symbol = "must contain only uppercase letters (A to Z), no spaces";
 
     if (Object.keys(fe).length) {
       setFieldErrors(fe);
-      setMsg(
-        "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
-      );
+      setMsg("Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields.");
       return;
     }
 
@@ -268,9 +276,7 @@ export default function Calculate() {
       if (status === 422 && data && typeof data === "object") {
         const fe2 = data.field_errors || {};
         setFieldErrors(fe2);
-        setMsg(
-          "Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields."
-        );
+        setMsg("Warning: The information you entered doesn't meet the requirements. Please fix the highlighted fields.");
         return;
       }
 
@@ -281,6 +287,9 @@ export default function Calculate() {
   const isOk = msg.toLowerCase().startsWith("calculated");
   const isErr = msg.toLowerCase().startsWith("warning");
 
+  // ------------------------------
+  // RENDER UI
+  // ------------------------------
   return (
     <div className="min-h-screen bg-brand-bg text-gray-100">
       <style>{`
@@ -301,7 +310,7 @@ export default function Calculate() {
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-            {/* DATE & TIME — with tooltip + fetch button inline */}
+            {/* DATE & TIME */}
             <div>
               <label className={labelCls + " flex items-center gap-2"}>
                 Date & time
@@ -313,12 +322,12 @@ export default function Calculate() {
                   </div>
 
                   <div className="absolute left-6 top-0 z-10 hidden w-64 rounded-lg border border-brand-border bg-brand-card/95 p-3 text-xs text-gray-200 shadow-lg group-hover:block">
-                    The time must be between <strong>10:30 AM and 5:00 PM</strong>  
+                    The time must be between <strong>10:30 AM and 5:00 PM</strong>
                     (stock market hours), Monday–Friday.
                   </div>
                 </div>
 
-                {/* Fetch button INLINE */}
+                {/* Fetch button (Estimate only) */}
                 {mode === "Estimate" && (
                   <button
                     type="button"
@@ -437,18 +446,43 @@ export default function Calculate() {
           {/* MODE SWITCH BUTTONS */}
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <div className="flex gap-2">
+
+              {/* ANALYZE BUTTON */}
               <button
                 type="button"
-                onClick={() => setMode("Analyze")}
+                onClick={() => {
+                  setMode("Analyze");
+                  setTimestamp("");
+                  setPrice("");
+                  setQuantity("");
+                  setSide("");
+                  setSymbol("");
+                  setFieldErrors({});
+                  setMetrics(null);
+                  setReview(null);
+                  setMsg("");
+                }}
                 disabled={mode === "Analyze"}
                 className={mode === "Analyze" ? btnPrimary : btnGhost}
               >
                 Analyze
               </button>
 
+              {/* ESTIMATE BUTTON */}
               <button
                 type="button"
-                onClick={() => setMode("Estimate")}
+                onClick={() => {
+                  setMode("Estimate");
+                  setTimestamp("");
+                  setPrice("");
+                  setQuantity("");
+                  setSide("");
+                  setSymbol("");
+                  setFieldErrors({});
+                  setMetrics(null);
+                  setReview(null);
+                  setMsg("");
+                }}
                 disabled={mode === "Estimate"}
                 className={mode === "Estimate" ? btnPrimary : btnGhost}
               >
@@ -461,9 +495,7 @@ export default function Calculate() {
             </div>
 
             <div className="ml-auto">
-              <button type="submit" className={btnPrimary}>
-                Run
-              </button>
+              <button type="submit" className={btnPrimary}>Run</button>
             </div>
           </div>
         </form>
