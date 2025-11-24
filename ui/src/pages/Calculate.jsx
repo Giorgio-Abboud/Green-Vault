@@ -342,12 +342,17 @@ export default function Calculate() {
               </label>
 
               <input
-                className={inputClass("timestamp")}
+                // className={inputClass("timestamp")}
+                className={
+                  (mode === "Estimate" ? "opacity-50 cursor-not-allowed " : "") +
+                  inputClass("timestamp")
+                }
                 type="datetime-local"
                 value={timestamp}
                 onChange={(e) => setTimestamp(e.target.value)}
                 required
                 name="timestamp"
+                disabled={mode === "Estimate"}
               />
               {fieldErrors.timestamp && (
                 <p className="mt-1 text-xs text-red-400">{fieldErrors.timestamp}</p>
