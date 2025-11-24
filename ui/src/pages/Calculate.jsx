@@ -342,7 +342,6 @@ export default function Calculate() {
               </label>
 
               <input
-                // className={inputClass("timestamp")}
                 className={
                   (mode === "Estimate" ? "opacity-50 cursor-not-allowed " : "") +
                   inputClass("timestamp")
