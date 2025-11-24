@@ -11,6 +11,7 @@ export default function Calculate() {
   const [metrics, setMetrics] = useState(null);
   const [review, setReview] = useState(null);
   const [msg, setMsg] = useState("");
+  const [analysisSaved, setAnalysisSaved] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
 
   // ------------------------------
@@ -270,6 +271,7 @@ export default function Calculate() {
 
       await apiPost("/v1/fills", payload);
       setMsg("calculated: Your fills and metrics were saved!");
+      setAnalysisSaved(true);
     } catch (err) {
       const { status, data } = parseApiError(err);
 
@@ -461,6 +463,7 @@ export default function Calculate() {
                   setMetrics(null);
                   setReview(null);
                   setMsg("");
+                  setAnalysisSaved(false);
                 }}
                 disabled={mode === "Analyze"}
                 className={mode === "Analyze" ? btnPrimary : btnGhost}
@@ -482,6 +485,7 @@ export default function Calculate() {
                   setMetrics(null);
                   setReview(null);
                   setMsg("");
+                  setAnalysisSaved(false);
                 }}
                 disabled={mode === "Estimate"}
                 className={mode === "Estimate" ? btnPrimary : btnGhost}
@@ -507,9 +511,12 @@ export default function Calculate() {
               <h3 className="text-lg font-medium text-gray-100 flex items-center gap-2">
                 <span className="text-brand-accent">Result</span>
               </h3>
-              <button onClick={save} className={btnPrimary}>
-                Save to DB
-              </button>
+
+              {mode === "Analyze" && !analysisSaved && (
+                <button onClick={save} className={btnPrimary}>
+                  Save Analysis
+                </button>
+              )}
             </div>
 
             {review && (
@@ -526,18 +533,26 @@ export default function Calculate() {
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-              {Object.entries(metrics).map(([key, value]) => (
-                <div
-                  key={key}
-                  className="flex items-center justify-between rounded-lg border border-brand-border bg-black/30 px-4 py-3 text-sm text-gray-200 shadow-sm"
-                >
-                  <span className="capitalize tracking-tight text-gray-300">
-                    {key.replace(/_/g, " ")}
-                  </span>
-                  <span className="font-semibold text-emerald-400">
-                    {value}
-                  </span>
-                </div>
+              {Object.entries(metrics)
+                .filter(([key]) => {
+                  // Hide these two only in Estimate mode
+                  if (mode === "Estimate") {
+                    return key !== "realized_spread" && key !== "market_impact";
+                  }
+                  return true;
+                })
+                .map(([key, value]) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between rounded-lg border border-brand-border bg-black/30 px-4 py-3 text-sm text-gray-200 shadow-sm"
+                  >
+                    <span className="capitalize tracking-tight text-gray-300">
+                      {key.replace(/_/g, " ")}
+                    </span>
+                    <span className="font-semibold text-emerald-400">
+                      {value}
+                    </span>
+                  </div>
               ))}
             </div>
           </div>
