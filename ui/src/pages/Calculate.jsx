@@ -121,9 +121,26 @@ export default function Calculate() {
 
       const formatted = `${y}-${m}-${d}T${hh}:${mm}`;
       setTimestamp(formatted);
+      return formatted;
     } catch (e) {
       console.error("Failed to fetch EST time:", e);
     }
+  }
+
+  function formatMetricValue(value) {
+    if (mode !== "Estimate") return value ?? "unavailable";
+
+    if (value === null || value === undefined) return "undeterminable";
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : "undeterminable";
+    }
+
+    const valStr = String(value).trim();
+    if (!valStr) return "undeterminable";
+
+    const lower = valStr.toLowerCase();
+    if (lower === "unavailable") return "undeterminable";
+    return valStr;
   }
 
   // ------------------------------
@@ -138,8 +155,8 @@ export default function Calculate() {
     // Auto-fill timestamp for Estimate mode
     let useTimestamp = timestamp;
     if (mode === "Estimate" && !useTimestamp) {
-      fetchCurrentTime();
-      useTimestamp = timestamp;
+      const current = fetchCurrentTime();
+      useTimestamp = current || timestamp;
     }
 
     let local = {};
@@ -533,6 +550,16 @@ export default function Calculate() {
                     Axes: {review.axis_summary}
                   </div>
                 )}
+                {review.why && (
+                  <div className="text-xs text-gray-300 leading-relaxed">
+                    {review.why}
+                  </div>
+                )}
+                {review.improve && (
+                  <div className="text-xs text-emerald-300 leading-relaxed">
+                    {review.improve}
+                  </div>
+                )}
               </div>
             )}
 
@@ -554,7 +581,7 @@ export default function Calculate() {
                       {key.replace(/_/g, " ")}
                     </span>
                     <span className="font-semibold text-emerald-400">
-                      {value}
+                      {formatMetricValue(value)}
                     </span>
                   </div>
               ))}
