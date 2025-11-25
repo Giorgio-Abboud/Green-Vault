@@ -10,7 +10,9 @@ import numpy as np
 
 from .metric import Window, compute_all_metrics, _tp_lookup, prepare_bars_df
 from .twelve_client import build_one_minute_window, get_time_series
-from reviewer.formatter import build_feedback
+from reviewer.axes import axis_band
+from reviewer.conclusion import choose_conclusion
+from reviewer.formatter import build_feedback, bps_to_pct_str
 
 # ---- user fills data frame creation ----
 def _create_fills_df(timestamp, price: float, quantity: int, side: str) -> tuple[pd.DataFrame, int]:
@@ -27,6 +29,27 @@ def _create_fills_df(timestamp, price: float, quantity: int, side: str) -> tuple
 
 
 NY = ZoneInfo("America/New_York")
+
+# Normalize estimate metrics so missing values read as "undeterminable" instead of None/unavailable.
+def _normalize_estimate_metrics(metrics: Dict[str, Any]) -> Dict[str, Any]:
+    clean: Dict[str, Any] = {}
+    core_keys = ("vwap_slippage", "shortfall", "effective_spread", "drift")
+
+    for key in core_keys:
+        val = metrics.get(key)
+        if isinstance(val, (int, float)) and not np.isfinite(val):
+            clean[key] = "undeterminable"
+        elif isinstance(val, str) and val.strip().lower() == "unavailable":
+            clean[key] = "undeterminable"
+        elif val is None:
+            clean[key] = "undeterminable"
+        else:
+            clean[key] = val
+
+    # Future-dependent metrics are not available in estimate mode.
+    clean["realized_spread"] = "undeterminable"
+    clean["market_impact"] = "undeterminable"
+    return clean
 
 # ---- metric calculators (stubs) ----
 def analyze(timestamp: datetime, price: float, quantity: int, side: str, symbol: str) -> Dict:
@@ -153,7 +176,7 @@ def estimate(timestamp: datetime, price: float, quantity: int, side: str, symbol
     ohlcv_df = get_time_series(symbol, "1min", fetch_start.to_pydatetime(), fetch_end.to_pydatetime())
     if ohlcv_df.empty:
         logging.warning("No OHLCV data returned for %s between %s and %s", symbol, fetch_start, fetch_end)
-        return {k: None for k in ("vwap_slippage", "shortfall", "effective_spread", "realized_spread", "market_impact", "drift")}
+        return _normalize_estimate_metrics({k: None for k in ("vwap_slippage", "shortfall", "effective_spread", "realized_spread", "market_impact", "drift")})
 
     bars_df = ohlcv_df.copy()
     if "start" not in bars_df.columns or "end" not in bars_df.columns:
@@ -190,9 +213,7 @@ def estimate(timestamp: datetime, price: float, quantity: int, side: str, symbol
         realized_horizon=realized_horizon,
     )
 
-    metrics["realized_spread"] = None
-    metrics["market_impact"] = None
-    return metrics
+    return _normalize_estimate_metrics(metrics)
 
 
 def make_calculation(
@@ -226,10 +247,13 @@ def make_calculation(
     review = None
     try:
         numeric = _extract_numeric_metrics(metrics)
-        # Need all six keys to build feedback; skip if incomplete
-        required_keys = {"vwap_slippage", "shortfall", "effective_spread", "realized_spread", "market_impact", "drift"}
-        if required_keys.issubset(numeric.keys()):
-            review = build_feedback(numeric)
+        if mode == "estimate":
+            review = _build_estimate_review(metrics, numeric)
+        else:
+            # Need all six keys to build feedback; skip if incomplete
+            required_keys = {"vwap_slippage", "shortfall", "effective_spread", "realized_spread", "market_impact", "drift"}
+            if required_keys.issubset(numeric.keys()):
+                review = build_feedback(numeric)
     except Exception:
         logging.exception("Failed to build reviewer feedback")
 
@@ -256,3 +280,48 @@ def _extract_numeric_metrics(metrics: Dict[str, Any]) -> Dict[str, float]:
                     pass
 
     return out
+
+
+def _build_estimate_review(metrics: Dict[str, Any], numeric: Dict[str, float] | None = None) -> Dict[str, str]:
+    """
+    Build a feedback payload for estimate mode, mirroring analyze-style output
+    but using only the metrics we can calculate without future data.
+    """
+    numeric_values = numeric if numeric is not None else _extract_numeric_metrics(metrics)
+
+    def _axis(name: str, default: str = "neutral") -> str:
+        try:
+            band = axis_band(name, numeric_values)
+        except Exception:
+            band = None
+        return band or default
+
+    execution = _axis("execution")
+    impact = _axis("impact")
+    timing = _axis("timing")
+    axis_summary = f"Execution {execution} | Impact {impact} | Timing {timing}"
+
+    conclusion = choose_conclusion(execution, impact, timing)
+    improve_text = conclusion.get("improve") or conclusion.get("keep", "")
+
+    def _fmt_pct(key: str, label: str) -> str:
+        if key not in numeric_values:
+            return f"{label} is undeterminable."
+        return f"{label} was about {bps_to_pct_str(numeric_values[key])}."
+
+    why_lines = [
+        _fmt_pct("vwap_slippage", "Your price versus VWAP"),
+        _fmt_pct("shortfall", "Compared to arrival price"),
+        _fmt_pct("effective_spread", "Your midpoint distance"),
+        _fmt_pct("drift", "Market drift"),
+    ]
+
+    return {
+        "conclusion_key": conclusion.get("key", "estimate"),
+        "conclusion": conclusion.get("conclusion", "Provisional estimate based on current data."),
+        "scores": axis_summary,
+        "why": " ".join(why_lines),
+        "improve": improve_text or "Future-dependent metrics are marked undeterminable; rerun analyze for a full review.",
+        "axis_summary": axis_summary,
+        "summary": f"{conclusion.get('conclusion', 'Estimate')} {improve_text}".strip(),
+    }
