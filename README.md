@@ -49,7 +49,7 @@ JWT_SECRET=change-me
 * Update ```username```, ```password```, and ```dbname``` to the credentials of the postgres container
 
 ### Update `JWT_SECRET` with a unique value
-* Make sure you have ```openssl``` installed. Linux and Mac users already have it. Windows users can run ```openssl``` using ````wsl```
+* Make sure you have ```openssl``` installed. Linux and Mac users already have it. Windows users can run ```openssl``` using ```wsl```
 * Update ```change-me``` to an unique random generated hex value by running
 ```
 openssl rand -hex 32
