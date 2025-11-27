@@ -389,6 +389,74 @@ func TestCreateMetric(t *testing.T) {
 	}
 }
 
+/************ UpdateUser ************/
+
+func TestUpdateUser(t *testing.T) {
+	store := newStore(t)
+	ctx := context.Background()
+
+	//Seed a test user
+	idTest := uuid.New()
+	u := models.User{
+		ID:           idTest,
+		Email:        "roary@testfiu.com",
+		Name:         "Roary",
+		LastName:     "Panther",
+		PasswordHash: "hashed",
+	}
+	if _, err := store.CreateUser(ctx, &u); err != nil {
+		t.Fatalf("seed CreateUser: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name       string
+		id         uuid.UUID
+		updateName string
+		wantErr    bool
+	}{
+		{
+			name:       "ok",
+			id:         idTest,
+			updateName: "TheRoary",
+			wantErr:    false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			u, err := store.GetUserByID(ctx, tc.id)
+			u.Name = tc.updateName
+			got, err := store.UpdateUser(ctx, u)
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if got == nil {
+				t.Fatal("expected deleted user, got nil")
+			}
+
+			if got.ID != tc.id {
+				t.Fatalf("deleted user ID mismatch: got %v, want %v", got.ID, tc.id)
+			}
+
+			// Verify user updated
+			updatedUser, err := store.GetUserByID(ctx, tc.id)
+			if err != nil {
+				t.Fatalf("no user was found after update")
+			}
+			if updatedUser.Name != tc.updateName {
+				t.Fatalf("user was not updated")
+			}
+		})
+	}
+}
+
 /************ DeleteUser ************/
 
 func TestDeleteUser(t *testing.T) {
