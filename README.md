@@ -21,7 +21,7 @@ All data is persisted in your local PostgreSQL database.
 
 ## Environment Files and Postgres Configuration
 
-### Postgres DB, if using containerized postgres (`/.env.db`)
+### Postgres DB (`/.env.db`)
 Create this file:
 ```
 POSTGRES_USER=postgres
@@ -34,8 +34,6 @@ Setup any password. The postgres instance will automatically create you account 
 Create this file:
 ```
 DB_URL=postgres://username:password@db:5432/dbname?sslmode=disable
-# Connect from container to your host's Postgres
-# DB_URL=postgres://username:password@host.docker.internal:5432/dbname?sslmode=disable
 
 JWT_SECRET=change-me
 ```
@@ -48,7 +46,7 @@ JWT_SECRET=change-me
 ```
 
 ### Update `DB_URL` with valid auth
-* Update ```username```, ```password```, and ```dbname``` to the credentials of the postgres container OR your actual credentials if accessing in your host machine.
+* Update ```username```, ```password```, and ```dbname``` to the credentials of the postgres container
 
 ### Update `JWT_SECRET` with a unique value
 * Make sure you have ```openssl``` installed. Linux and Mac users already have it. Windows users can run ```openssl``` using ````wsl```
@@ -75,28 +73,7 @@ The analyzer makes external requests to Twelve Data. Set up your API key once an
 TWELVE_DATA_API_KEY=your_secret_twelve_data_api_key
 ```
 
-#### Note
-- Do **not** commit `.env` (it should already be in `.gitignore`).
-
-### Postgres Setup
-You must have:
-* A Postgres user and database created manually:
-```
-CREATE USER your_user WITH PASSWORD 'your_password';
-CREATE DATABASE dbname OWNER your_user;
-```
-Allow Docker containers to connect:
-- In ```postgresql.conf```:
-```
-listen_addresses = '*'
-```
-- In ```pg_hba.conf```:
-```
-host all all {subnet_docker_network} md5
-```
-- Restart PostgreSQL
-
-### Postgres DB Container
+### Run Postgres DB Container
 Run this to access postgres db (only after docker compose up):
 ```
 docker exec -it postgres-db psql -U postgres -d greenvault
