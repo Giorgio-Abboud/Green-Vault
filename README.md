@@ -13,9 +13,9 @@ All data is persisted in your local PostgreSQL database.
 
 ---
 
-## Requirements
-- Install **Docker**
-- Install **Docker Compose plugin**
+## Prerequisites
+- Install **Docker**: https://docs.docker.com/engine/install/
+- Install **Docker Compose plugin**: https://docs.docker.com/compose/install/linux/
 
 ---
 
