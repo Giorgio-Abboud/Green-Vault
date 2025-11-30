@@ -12,7 +12,14 @@ from .metric import Window, compute_all_metrics, _tp_lookup, prepare_bars_df
 from .twelve_client import build_one_minute_window, get_time_series
 from reviewer.axes import axis_band
 from reviewer.conclusion import choose_conclusion
-from reviewer.formatter import build_feedback, bps_to_pct_str
+from reviewer.formatter import (
+    _advice_text,
+    _drift_detail,
+    _drift_headline,
+    _price_detail,
+    _price_headline,
+    build_feedback,
+)
 
 # ---- user fills data frame creation ----
 def _create_fills_df(timestamp, price: float, quantity: int, side: str) -> tuple[pd.DataFrame, int]:
@@ -302,26 +309,27 @@ def _build_estimate_review(metrics: Dict[str, Any], numeric: Dict[str, float] | 
     axis_summary = f"Execution {execution} | Impact {impact} | Timing {timing}"
 
     conclusion = choose_conclusion(execution, impact, timing)
-    improve_text = conclusion.get("improve") or conclusion.get("keep", "")
+    advice_text = _advice_text(conclusion.get("key", "mixed"))
 
-    def _fmt_pct(key: str, label: str) -> str:
-        if key not in numeric_values:
-            return f"{label} is undeterminable."
-        return f"{label} was about {bps_to_pct_str(numeric_values[key])}."
+    vwap = numeric_values.get("vwap_slippage")
+    shortfall = numeric_values.get("shortfall")
+    drift_val = numeric_values.get("drift")
+
+    headline = " ".join(
+        [txt for txt in (_price_headline(vwap, shortfall), _drift_headline(drift_val)) if txt][:2]
+    ).strip()
 
     why_lines = [
-        _fmt_pct("vwap_slippage", "Your price versus VWAP"),
-        _fmt_pct("shortfall", "Compared to arrival price"),
-        _fmt_pct("effective_spread", "Your midpoint distance"),
-        _fmt_pct("drift", "Market drift"),
+        _price_detail(vwap, shortfall),
+        _drift_detail(drift_val),
     ]
 
     return {
         "conclusion_key": conclusion.get("key", "estimate"),
-        "conclusion": conclusion.get("conclusion", "Provisional estimate based on current data."),
+        "conclusion": headline or conclusion.get("conclusion", "Provisional estimate based on current data."),
         "scores": axis_summary,
-        "why": " ".join(why_lines),
-        "improve": improve_text or "Future-dependent metrics are marked undeterminable; rerun analyze for a full review.",
+        "why": " ".join([line for line in why_lines if line]),
+        "improve": advice_text or "Future-dependent metrics are marked undeterminable; rerun analyze for a full review.",
         "axis_summary": axis_summary,
-        "summary": f"{conclusion.get('conclusion', 'Estimate')} {improve_text}".strip(),
+        "summary": headline or conclusion.get("conclusion", "Provisional estimate based on current data."),
     }
