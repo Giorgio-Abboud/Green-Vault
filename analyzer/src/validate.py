@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation
 from fastapi import HTTPException, status
 import holidays, uuid, re
 from typing import Any
-from src.data_client import check_symbol
+from .data_client import check_symbol
 
 def validate_user_fills(timestamp: datetime, price: float, quantity: int, side: str, symbol: str) -> dict:
     field_errors = {}

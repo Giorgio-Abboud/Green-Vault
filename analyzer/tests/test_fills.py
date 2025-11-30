@@ -35,7 +35,7 @@ from fastapi import HTTPException, status
                 "fills": None,
                 "error": "Validation failed",
                 "field_errors": {
-                    "timestamp": "Inputted timestamp cannot be before 9:30 AM or after 4:00 PM."
+                    "timestamp": "Inputted timestamp cannot be before 10:30 AM or after 5:00 PM."
                 }
             }
         },
@@ -275,40 +275,3 @@ def test_user_fills(fills) -> None:
         expected["request_id"] = output["request_id"]
 
         assert expected == output
-
-# @pytest.mark.parametrize(
-#         "timezones",
-#         [
-#             {
-#                 "timezone": "wrong",
-#                 "expected": {
-#                     "ok": False,
-#                     "request_id": "",
-#                     "fills": None,
-#                     "error": "Validation failed",
-#                     "field_errors": {
-#                         "timezone": "Inputted timezone must exist."
-#                     }
-#                 }
-#             },
-#         ]
-# )        
-# def test_timezone(timezones) -> None:
-#     with pytest.raises(HTTPException) as validate_fail:
-#         output = validate_tz(timezones["timezone"])
-
-#     if validate_fail:
-#         error = validate_fail.value
-#         assert error.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-
-#         details = error.detail
-#         expected = deepcopy(timezones["expected"])
-#         expected["request_id"] = details["request_id"]
-
-#         assert expected == details
-
-#     else:
-#         expected = deepcopy(timezones["expected"])
-#         expected["request_id"] = output["request_id"]
-
-#         assert expected == output
