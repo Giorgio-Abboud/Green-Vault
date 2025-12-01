@@ -198,6 +198,8 @@ export default function Calculate() {
       setMetrics(r?.metrics || null);
       setReview(r?.review || null);
       setMsg("calculated");
+      setAnalysisSaved(false);
+      setMsg(""); 
     } catch (err) {
       const { status, data } = parseApiError(err);
       setMetrics(null);
@@ -533,7 +535,7 @@ export default function Calculate() {
                 <span className="text-brand-accent">Result</span>
               </h3>
 
-              {mode === "Analyze" && !analysisSaved && (
+              {mode === "Analyze" && !analysisSaved && metrics && (
                 <button onClick={save} className={btnPrimary}>
                   Save Analysis
                 </button>
